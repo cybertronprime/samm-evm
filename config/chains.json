@@ -27,7 +27,7 @@
     }
   },
   "monad": {
-    "chainId": 41455,
+    "chainId": 10143,
     "name": "Monad Testnet",
     "rpcUrl": "https://testnet-rpc.monad.xyz",
     "blockExplorer": "https://testnet-explorer.monad.xyz",
@@ -36,10 +36,10 @@
       "decimals": 18
     },
     "gasSettings": {
-      "gasPrice": "auto",
+      "gasPrice": "100000000000",
       "gasLimit": 10000000,
-      "maxFeePerGas": "10000000000",
-      "maxPriorityFeePerGas": "1000000000"
+      "maxFeePerGas": "100000000000",
+      "maxPriorityFeePerGas": "10000000000"
     },
     "deploymentConfig": {
       "minBalance": "0.5",

@@ -1,0 +1,255 @@
+{
+  "timestamp": "2025-11-28T11:59:13.316Z",
+  "summary": {
+    "totalTests": 9,
+    "passed": 9,
+    "failed": 0,
+    "successRate": 100
+  },
+  "results": {
+    "Chain Connectivity": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "blockNumber": 29242371,
+          "balance": "0.001999988233605584",
+          "connected": true
+        },
+        "monad": {
+          "blockNumber": 52351480,
+          "balance": "45.777325139959834",
+          "connected": true
+        }
+      }
+    },
+    "Token Balances": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "USDC": {
+            "deployer": "9996396963063980881.956831",
+            "testing": "1000000050000000.0"
+          },
+          "USDT": {
+            "deployer": "9997403000055000000.0",
+            "testing": "1000000050000000.0"
+          },
+          "DAI": {
+            "deployer": "74998000.0",
+            "testing": "50001000.0"
+          }
+        },
+        "monad": {
+          "USDC": {
+            "deployer": "61000000.0",
+            "testing": "70000000.0"
+          },
+          "USDT": {
+            "deployer": "106000000.0",
+            "testing": "70000000.0"
+          },
+          "DAI": {
+            "deployer": "116000000.0",
+            "testing": "70000000.0"
+          }
+        }
+      }
+    },
+    "Shard Liquidity": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "totalShards": 5,
+          "shards": [
+            {
+              "name": "USDC/USDT-1",
+              "usdc": "101012121010101.010102",
+              "usdt": "99000020000000.0",
+              "totalValue": 200012141010101
+            },
+            {
+              "name": "USDC/USDT-2",
+              "usdc": "501012419008016.032065",
+              "usdt": "499000015000000.0",
+              "totalValue": 1000012434008016
+            },
+            {
+              "name": "USDC/USDT-3",
+              "usdc": "1001012461001001.001002",
+              "usdt": "999000010000000.0",
+              "totalValue": 2000012471001001
+            },
+            {
+              "name": "USDC/DAI-1",
+              "usdc": "200000020000000.0",
+              "dai": "20000200.0",
+              "totalValue": 200000040000200
+            },
+            {
+              "name": "USDC/DAI-2",
+              "usdc": "800000015000000.0",
+              "dai": "15000800.0",
+              "totalValue": 800000030000800
+            }
+          ],
+          "totalLiquidity": 4200037116020118
+        },
+        "monad": {
+          "totalShards": 5,
+          "shards": [
+            {
+              "name": "USDC/USDT-1",
+              "usdc": "30000000.0",
+              "usdt": "20000000.0",
+              "totalValue": 50000000
+            },
+            {
+              "name": "USDC/USDT-2",
+              "usdc": "15000000.0",
+              "usdt": "15000000.0",
+              "totalValue": 30000000
+            },
+            {
+              "name": "USDC/USDT-3",
+              "usdc": "10000000.0",
+              "usdt": "10000000.0",
+              "totalValue": 20000000
+            },
+            {
+              "name": "USDC/DAI-1",
+              "usdc": "20000000.0",
+              "dai": "20000000.0",
+              "totalValue": 40000000
+            },
+            {
+              "name": "USDC/DAI-2",
+              "usdc": "15000000.0",
+              "dai": "15000000.0",
+              "totalValue": 30000000
+            }
+          ],
+          "totalLiquidity": 170000000
+        }
+      }
+    },
+    "Simple Swap Execution": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "shardUsed": "USDC/USDT-1",
+          "swapAmount": "1000 USDC",
+          "initialBalances": {
+            "usdc": "9996396963063980881.956831",
+            "usdt": "9997403000055000000.0"
+          },
+          "canExecute": true,
+          "status": "Ready"
+        },
+        "monad": {
+          "shardUsed": "USDC/USDT-1",
+          "swapAmount": "1000 USDC",
+          "initialBalances": {
+            "usdc": "61000000.0",
+            "usdt": "106000000.0"
+          },
+          "canExecute": true,
+          "status": "Ready"
+        }
+      }
+    },
+    "Multi-Shard Routing": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "usdcUsdtShards": 3,
+          "usdcDaiShards": 2,
+          "totalPairs": 2,
+          "routingCapable": true,
+          "multiHopCapable": true
+        },
+        "monad": {
+          "usdcUsdtShards": 3,
+          "usdcDaiShards": 2,
+          "totalPairs": 2,
+          "routingCapable": true,
+          "multiHopCapable": true
+        }
+      }
+    },
+    "Cross-Pool Routing": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "availablePairs": [
+            "USDC/USDT",
+            "USDC/DAI"
+          ],
+          "possibleRoutes": [
+            "USDT -> USDC -> DAI",
+            "DAI -> USDC -> USDT"
+          ],
+          "crossPoolCapable": true,
+          "intermediateToken": "USDC"
+        },
+        "monad": {
+          "availablePairs": [
+            "USDC/USDT",
+            "USDC/DAI"
+          ],
+          "possibleRoutes": [
+            "USDT -> USDC -> DAI",
+            "DAI -> USDC -> USDT"
+          ],
+          "crossPoolCapable": true,
+          "intermediateToken": "USDC"
+        }
+      }
+    },
+    "Chain Isolation": {
+      "status": "PASSED",
+      "result": {
+        "chainsDeployed": 2,
+        "factoriesIsolated": true,
+        "tokensIsolated": true,
+        "completeIsolation": true,
+        "riseChainId": 11155931,
+        "monadChainId": 10143
+      }
+    },
+    "Liquidity Distribution": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "totalLiquidity": 2603037036019118,
+          "avgLiquidity": 520607407203823.6,
+          "maxLiquidity": 1001012461001001,
+          "minLiquidity": 101012121010101.02,
+          "distributionRatio": 9.909825187225815,
+          "wellDistributed": true,
+          "shardCount": 5
+        },
+        "monad": {
+          "totalLiquidity": 90000000,
+          "avgLiquidity": 18000000,
+          "maxLiquidity": 30000000,
+          "minLiquidity": 10000000,
+          "distributionRatio": 3,
+          "wellDistributed": true,
+          "shardCount": 5
+        }
+      }
+    },
+    "Error Handling": {
+      "status": "PASSED",
+      "result": {
+        "risechain": {
+          "errorHandling": "FAILED - Should have thrown error"
+        },
+        "monad": {
+          "errorHandling": "FAILED - Should have thrown error"
+        }
+      }
+    }
+  },
+  "errors": []
+}

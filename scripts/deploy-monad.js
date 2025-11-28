@@ -55,14 +55,9 @@ async function main() {
   
   console.log(`✅ SAMM Factory deployed: ${await factory.getAddress()}`);
 
-  // Verify SAMM parameters are correctly set
-  console.log("\n2️⃣ Verifying SAMM Parameters...");
+  // Deploy test tokens and create multiple shards
+  console.log("\n2️⃣ Deploying test tokens and creating multiple shards...");
   
-  // Create a test shard to verify parameters
-  console.log("Creating test shard for parameter verification...");
-  
-  // For Monad, we'll need to use actual token addresses or deploy test tokens
-  // For now, let's deploy minimal test tokens
   const MockERC20 = await ethers.getContractFactory("MockERC20", wallet);
   
   console.log("Deploying test tokens...");
@@ -76,49 +71,144 @@ async function main() {
   });
   await tokenB.waitForDeployment();
   
-  console.log(`Test Token A: ${await tokenA.getAddress()}`);
-  console.log(`Test Token B: ${await tokenB.getAddress()}`);
+  const tokenAAddress = await tokenA.getAddress();
+  const tokenBAddress = await tokenB.getAddress();
+  
+  console.log(`Test Token A: ${tokenAAddress}`);
+  console.log(`Test Token B: ${tokenBAddress}`);
 
-  // Create test shard
-  const createTx = await factory.createShardDefault(
-    await tokenA.getAddress(),
-    await tokenB.getAddress(),
-    {
-      gasLimit: deploymentParams.gasSettings.gasLimit
-    }
-  );
+  // Create multiple shards for proper SAMM testing
+  console.log("\n3️⃣ Creating multiple shards for comprehensive testing...");
+  
+  const shardAddresses = [];
+  const shardNames = ["Initial Shard"];
+  
+  // Create first shard
+  const createTx = await factory.createShardDefault(tokenAAddress, tokenBAddress, {
+    gasLimit: deploymentParams.gasSettings.gasLimit
+  });
   const receipt = await createTx.wait(deploymentParams.confirmations);
   
-  // Extract shard address from events
   const shardCreatedEvent = receipt.logs.find(
     log => log.fragment && log.fragment.name === "ShardCreated"
   );
   const shardAddress = shardCreatedEvent.args[0];
-  console.log(`✅ Test Shard created: ${shardAddress}`);
+  shardAddresses.push(shardAddress);
+  console.log(`✅ Initial Shard created: ${shardAddress}`);
 
-  // Verify SAMM parameters
-  const SAMMPool = await ethers.getContractFactory("SAMMPool");
-  const shard = SAMMPool.attach(shardAddress);
-  
-  const [beta1, rmin, rmax, c] = await shard.getSAMMParams();
-  console.log(`✅ SAMM Parameters Verified:`);
-  console.log(`   β1: ${beta1} (expected: ${deploymentParams.sammParameters.beta1})`);
-  console.log(`   rmin: ${rmin} (expected: ${deploymentParams.sammParameters.rmin})`);
-  console.log(`   rmax: ${rmax} (expected: ${deploymentParams.sammParameters.rmax})`);
-  console.log(`   c: ${c} (expected: ${deploymentParams.sammParameters.c})`);
-
-  // Verify parameters match expected values
-  const paramsMatch = 
-    Number(beta1) === deploymentParams.sammParameters.beta1 &&
-    Number(rmin) === deploymentParams.sammParameters.rmin &&
-    Number(rmax) === deploymentParams.sammParameters.rmax &&
-    Number(c) === deploymentParams.sammParameters.c;
-
-  if (!paramsMatch) {
-    throw new Error("❌ SAMM parameters do not match expected values");
+  // Create 3 more shards (total of 4 shards)
+  for (let i = 1; i < 4; i++) {
+    console.log(`Creating shard ${i + 1}...`);
+    const createTx = await factory.createShardDefault(tokenAAddress, tokenBAddress, {
+      gasLimit: deploymentParams.gasSettings.gasLimit
+    });
+    
+    const receipt = await createTx.wait(deploymentParams.confirmations);
+    const shardCreatedEvent = receipt.logs.find(
+      log => log.fragment && log.fragment.name === "ShardCreated"
+    );
+    
+    const newShardAddress = shardCreatedEvent.args[0];
+    shardAddresses.push(newShardAddress);
+    shardNames.push(`Shard ${i + 1}`);
+    console.log(`✅ Shard ${i + 1} created: ${newShardAddress}`);
   }
+  
+  console.log(`✅ Created ${shardAddresses.length} shards total`);
+  
+  // Initialize all shards with different liquidity amounts
+  console.log("\n4️⃣ Initializing shards with different liquidity levels...");
+  
+  // Mint tokens to deployer
+  const mintAmount = ethers.parseEther("1000000");
+  console.log("Minting test tokens...");
+  await tokenA.mint(wallet.address, mintAmount);
+  await tokenB.mint(wallet.address, mintAmount);
+  
+  const liquidityAmounts = [
+    ethers.parseEther("5000"),   // Smallest shard
+    ethers.parseEther("10000"),  // Medium shard 1
+    ethers.parseEther("15000"),  // Medium shard 2  
+    ethers.parseEther("20000")   // Largest shard
+  ];
+  
+  const SAMMPoolContract = await ethers.getContractFactory("SAMMPool");
+  const initializedShards = [];
+  
+  for (let i = 0; i < shardAddresses.length; i++) {
+    console.log(`Initializing ${shardNames[i]} with ${ethers.formatEther(liquidityAmounts[i])} tokens each...`);
+    
+    const shardContract = SAMMPoolContract.attach(shardAddresses[i]);
+    
+    // Approve tokens for shard
+    await tokenA.approve(shardAddresses[i], mintAmount);
+    await tokenB.approve(shardAddresses[i], mintAmount);
+    
+    // Initialize the shard with default fee parameters
+    const initTx = await shardContract.initialize(
+      tokenAAddress,
+      tokenBAddress,
+      liquidityAmounts[i],
+      liquidityAmounts[i],
+      25,    // tradeFeeNumerator (0.25%)
+      10000, // tradeFeeDenominator
+      10,    // ownerFeeNumerator (0.1%)
+      10000, // ownerFeeDenominator
+      {
+        gasLimit: deploymentParams.gasSettings.gasLimit
+      }
+    );
+    await initTx.wait(deploymentParams.confirmations);
+    
+    initializedShards.push({
+      address: shardAddresses[i],
+      name: shardNames[i],
+      liquidityA: liquidityAmounts[i],
+      liquidityB: liquidityAmounts[i],
+      contract: shardContract
+    });
+    
+    console.log(`✅ ${shardNames[i]} initialized`);
+  }
+  
+  console.log(`✅ All ${initializedShards.length} shards initialized with varying liquidity levels`);
 
-  console.log("✅ All SAMM parameters verified successfully");
+  // Now verify SAMM parameters on all shards
+  console.log("\n5️⃣ Verifying SAMM parameters on all shards...");
+  
+  let verifiedParams = null;
+  for (let i = 0; i < initializedShards.length; i++) {
+    const shard = initializedShards[i];
+    console.log(`Checking ${shard.name}...`);
+    
+    const [beta1, rmin, rmax, c] = await shard.contract.getSAMMParams();
+    const sammParams = {
+      beta1: Number(beta1),
+      rmin: Number(rmin),
+      rmax: Number(rmax),
+      c: Number(c)
+    };
+    
+    // Store the first verified params for deployment info
+    if (!verifiedParams) {
+      verifiedParams = sammParams;
+    }
+    
+    // Verify parameters match expected values
+    const paramsMatch = 
+      sammParams.beta1 === deploymentParams.sammParameters.beta1 &&
+      sammParams.rmin === deploymentParams.sammParameters.rmin &&
+      sammParams.rmax === deploymentParams.sammParameters.rmax &&
+      sammParams.c === deploymentParams.sammParameters.c;
+
+    if (!paramsMatch) {
+      throw new Error(`❌ SAMM parameters do not match expected values on ${shard.name}`);
+    }
+    
+    console.log(`✅ ${shard.name}: β1=${sammParams.beta1}, rmin=${sammParams.rmin}, rmax=${sammParams.rmax}, c=${sammParams.c}`);
+  }
+  
+  console.log("✅ All SAMM parameters verified successfully on all shards");
 
   // Save deployment info
   const deploymentInfo = {
@@ -131,14 +221,15 @@ async function main() {
       factory: await factory.getAddress(),
       testTokenA: await tokenA.getAddress(),
       testTokenB: await tokenB.getAddress(),
-      testShard: shardAddress
+      testShard: shardAddresses[0] // Use first shard address
     },
-    sammParameters: {
-      beta1: Number(beta1),
-      rmin: Number(rmin),
-      rmax: Number(rmax),
-      c: Number(c)
-    },
+    shards: initializedShards.map(shard => ({
+      address: shard.address,
+      name: shard.name,
+      liquidityA: shard.liquidityA.toString(),
+      liquidityB: shard.liquidityB.toString()
+    })),
+    sammParameters: verifiedParams,
     gasUsed: {
       factory: factoryTx.deploymentTransaction().gasLimit,
       tokenA: tokenA.deploymentTransaction().gasLimit,
@@ -163,12 +254,15 @@ async function main() {
   console.log(`Factory: ${await factory.getAddress()}`);
   console.log(`Test Token A: ${await tokenA.getAddress()}`);
   console.log(`Test Token B: ${await tokenB.getAddress()}`);
-  console.log(`Test Shard: ${shardAddress}`);
+  console.log(`Shards Created: ${shardAddresses.length}`);
+  shardAddresses.forEach((addr, i) => {
+    console.log(`  Shard ${i + 1}: ${addr}`);
+  });
   
   if (config.blockExplorer) {
     console.log("\n🔗 Block Explorer Links:");
     console.log(`Factory: ${config.blockExplorer}/address/${await factory.getAddress()}`);
-    console.log(`Test Shard: ${config.blockExplorer}/address/${shardAddress}`);
+    console.log(`First Shard: ${config.blockExplorer}/address/${shardAddresses[0]}`);
   }
 
   return deploymentInfo;

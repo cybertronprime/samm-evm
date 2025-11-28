@@ -111,7 +111,7 @@ async function validateDeployerBalance(provider, deployerAddress, networkName) {
     const minRequired = ethers.parseEther(config.deploymentConfig.minBalance);
     
     const isValid = balance >= minRequired;
-    const shortfall = isValid ? ethers.BigInt("0") : minRequired - balance;
+    const shortfall = isValid ? BigInt("0") : minRequired - balance;
     
     return {
       isValid,

@@ -1,0 +1,113 @@
+{
+  "network": "Monad Testnet",
+  "chainId": 10143,
+  "timestamp": "2025-11-28T19:21:49.284Z",
+  "deployer": "0x004566C322f5F1CBC0594928556441f8D38EA589",
+  "version": "v2-decimal-aware",
+  "sammCoreFeature": "Complete multi-hop routing with decimal normalization",
+  "contracts": {
+    "factory": "0x8ab2De0CD1C3bcAe3cB9a8028E28D60301dBf336",
+    "tokens": [
+      {
+        "symbol": "USDC",
+        "address": "0x9153bc242a5FD22b149B1cb252e3eE6314C37366",
+        "decimals": 6
+      },
+      {
+        "symbol": "USDT",
+        "address": "0x39f0B52190CeA4B3569D5D501f0c637892F52379",
+        "decimals": 6
+      },
+      {
+        "symbol": "DAI",
+        "address": "0xccA96CacCd9785f32C1ea02D688bc013D43D9f46",
+        "decimals": 18
+      }
+    ],
+    "shards": [
+      {
+        "name": "USDC/USDT-1",
+        "pairName": "USDC/USDT",
+        "address": "0x986e6AA143Ecf491FbB9FFbcFB1A61424af1BC1e",
+        "tokenA": "0x9153bc242a5FD22b149B1cb252e3eE6314C37366",
+        "tokenB": "0x39f0B52190CeA4B3569D5D501f0c637892F52379",
+        "liquidity": "5000000",
+        "status": "active"
+      },
+      {
+        "name": "USDC/USDT-2",
+        "pairName": "USDC/USDT",
+        "address": "0xA68065D56C003D6982a6215Bd1C765726b2fCa13",
+        "tokenA": "0x9153bc242a5FD22b149B1cb252e3eE6314C37366",
+        "tokenB": "0x39f0B52190CeA4B3569D5D501f0c637892F52379",
+        "liquidity": "3000000",
+        "status": "active"
+      },
+      {
+        "name": "USDC/USDT-3",
+        "pairName": "USDC/USDT",
+        "address": "0x58136Bb18639C7C3f2C552Bb734dA6D65Ff7D653",
+        "tokenA": "0x9153bc242a5FD22b149B1cb252e3eE6314C37366",
+        "tokenB": "0x39f0B52190CeA4B3569D5D501f0c637892F52379",
+        "liquidity": "2000000",
+        "status": "active"
+      },
+      {
+        "name": "USDT/DAI-1",
+        "pairName": "USDT/DAI",
+        "address": "0x179e0308524c916a6F0452FF0ce999cEC88588e8",
+        "tokenA": "0x39f0B52190CeA4B3569D5D501f0c637892F52379",
+        "tokenB": "0xccA96CacCd9785f32C1ea02D688bc013D43D9f46",
+        "liquidity": "10000",
+        "status": "active"
+      },
+      {
+        "name": "USDT/DAI-2",
+        "pairName": "USDT/DAI",
+        "address": "0x40767849365ff64F9EB341eD2Cf3E40590578749",
+        "tokenA": "0x39f0B52190CeA4B3569D5D501f0c637892F52379",
+        "tokenB": "0xccA96CacCd9785f32C1ea02D688bc013D43D9f46",
+        "liquidity": "20000",
+        "status": "active"
+      },
+      {
+        "name": "USDT/DAI-3",
+        "pairName": "USDT/DAI",
+        "address": "0x302bB8B9Cf5722a2C69B19D98393041E007085Eb",
+        "tokenA": "0x39f0B52190CeA4B3569D5D501f0c637892F52379",
+        "tokenB": "0xccA96CacCd9785f32C1ea02D688bc013D43D9f46",
+        "liquidity": "30000",
+        "status": "active"
+      }
+    ]
+  },
+  "multiHopRouting": {
+    "enabled": true,
+    "supportedPairs": [
+      "USDC/USDT",
+      "USDT/DAI"
+    ],
+    "multiHopPaths": [
+      {
+        "from": "USDC",
+        "to": "DAI",
+        "path": [
+          "USDC",
+          "USDT",
+          "DAI"
+        ],
+        "pools": [
+          "USDC/USDT",
+          "USDT/DAI"
+        ]
+      }
+    ]
+  },
+  "stats": {
+    "totalShards": 6,
+    "usdcUsdtShards": 3,
+    "usdtDaiShards": 3,
+    "demonstratesMultiHopRouting": true,
+    "decimalNormalization": true
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "network": "Monad Testnet",
+  "chainId": 10143,
+  "timestamp": "2025-11-28T16:37:37.094Z",
+  "deployer": "0x004566C322f5F1CBC0594928556441f8D38EA589",
+  "feature": "USDT/DAI pools with 3 shards",
+  "contracts": {
+    "factory": "0x70fe868ac814CC197631B60eEEaEaa1553418D03",
+    "tokens": [
+      {
+        "symbol": "USDT",
+        "address": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F"
+      },
+      {
+        "symbol": "DAI",
+        "address": "0x60CB213FCd1616FbBD44319Eb11A35d5671E692e"
+      }
+    ],
+    "shards": [
+      {
+        "name": "USDT/DAI-1",
+        "pairName": "USDT/DAI",
+        "address": "0x20c893A2706a71695894b15A4C385a3710C213eb",
+        "tokenA": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F",
+        "tokenB": "0x60CB213FCd1616FbBD44319Eb11A35d5671E692e",
+        "liquidity": "100.0"
+      },
+      {
+        "name": "USDT/DAI-2",
+        "pairName": "USDT/DAI",
+        "address": "0xe369Fe406ecB270b0F73C641260791C5A2edEB81",
+        "tokenA": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F",
+        "tokenB": "0x60CB213FCd1616FbBD44319Eb11A35d5671E692e",
+        "liquidity": "500.0"
+      },
+      {
+        "name": "USDT/DAI-3",
+        "pairName": "USDT/DAI",
+        "address": "0x4d3c19832713A7993d69870cB421586CBC36dceA",
+        "tokenA": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F",
+        "tokenB": "0x60CB213FCd1616FbBD44319Eb11A35d5671E692e",
+        "liquidity": "1000.0"
+      }
+    ]
+  },
+  "stats": {
+    "totalShards": 3,
+    "totalLiquidity": "1600.0"
+  }
+}

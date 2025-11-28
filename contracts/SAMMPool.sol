@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -31,8 +32,12 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
     // Pool tokens
     address public immutable tokenA;
     address public immutable tokenB;
+    
+    // Token decimals
+    uint8 public immutable decimalsA;
+    uint8 public immutable decimalsB;
 
-    // Reserves
+    // Reserves (stored in token's native decimals)
     uint256 private reserveA;
     uint256 private reserveB;
 
@@ -72,6 +77,10 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
 
         tokenA = _tokenA;
         tokenB = _tokenB;
+        
+        // Get decimals from tokens
+        decimalsA = IERC20Metadata(_tokenA).decimals();
+        decimalsB = IERC20Metadata(_tokenB).decimals();
     }
 
     /**
@@ -173,27 +182,45 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
             "SAMMPool: invalid token pair"
         );
 
-        // Get current reserves
-        (uint256 inputReserve, uint256 outputReserve) = tokenIn == tokenA
-            ? (reserveA, reserveB)
-            : (reserveB, reserveA);
+        // Get current reserves and decimals
+        bool isAtoB = tokenIn == tokenA;
+        uint256 inputReserve;
+        uint256 outputReserve;
+        uint8 inputDecimals;
+        uint8 outputDecimals;
+        
+        if (isAtoB) {
+            inputReserve = reserveA;
+            outputReserve = reserveB;
+            inputDecimals = decimalsA;
+            outputDecimals = decimalsB;
+        } else {
+            inputReserve = reserveB;
+            outputReserve = reserveA;
+            inputDecimals = decimalsB;
+            outputDecimals = decimalsA;
+        }
 
         require(amountOut < outputReserve, "SAMMPool: insufficient liquidity");
 
-        // Validate c-threshold for SAMM properties
+        // Validate c-threshold for SAMM properties (using normalized values)
         require(
-            SAMMFees.validateCThreshold(amountOut, inputReserve, c),
+            SAMMFees.validateCThreshold(
+                _normalize(amountOut, outputDecimals),
+                _normalize(inputReserve, inputDecimals),
+                c
+            ),
             "SAMMPool: exceeds c-threshold"
         );
 
         // Calculate swap using SAMM algorithm
-        SwapResult memory result = _calculateSwapSAMM(amountOut, inputReserve, outputReserve);
+        SwapResult memory result = _calculateSwapSAMM(amountOut, inputReserve, outputReserve, inputDecimals, outputDecimals);
 
         // Check slippage protection
         require(result.amountIn <= maximalAmountIn, "SAMMPool: excessive input amount");
 
         // Update reserves
-        if (tokenIn == tokenA) {
+        if (isAtoB) {
             reserveA = inputReserve + result.amountIn;
             reserveB = outputReserve - amountOut;
             collectedFeesA += result.tradeFee + result.ownerFee;
@@ -313,10 +340,10 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
 
     /**
      * @notice Calculate SAMM swap result without executing
-     * @param amountOut Desired output amount
+     * @param amountOut Desired output amount (in output token's decimals)
      * @param tokenIn Input token address
      * @param tokenOut Output token address
-     * @return result SwapResult struct with calculated amounts
+     * @return result SwapResult struct with calculated amounts (in respective token decimals)
      */
     function calculateSwapSAMM(
         uint256 amountOut,
@@ -328,11 +355,16 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
             "SAMMPool: invalid token pair"
         );
 
-        (uint256 inputReserve, uint256 outputReserve) = tokenIn == tokenA
+        bool isAtoB = tokenIn == tokenA;
+        (uint256 inputReserve, uint256 outputReserve) = isAtoB
             ? (reserveA, reserveB)
             : (reserveB, reserveA);
+        
+        (uint8 inputDecimals, uint8 outputDecimals) = isAtoB
+            ? (decimalsA, decimalsB)
+            : (decimalsB, decimalsA);
 
-        return _calculateSwapSAMM(amountOut, inputReserve, outputReserve);
+        return _calculateSwapSAMM(amountOut, inputReserve, outputReserve, inputDecimals, outputDecimals);
     }
 
     /**
@@ -474,40 +506,94 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
     // Internal functions
 
     /**
+     * @dev Normalize amount to 18 decimals for calculations
+     * @param amount Amount in token's native decimals
+     * @param tokenDecimals Token's decimal places
+     * @return Normalized amount (18 decimals)
+     */
+    function _normalize(uint256 amount, uint8 tokenDecimals) private pure returns (uint256) {
+        if (tokenDecimals == 18) {
+            return amount;
+        } else if (tokenDecimals < 18) {
+            return amount * (10 ** (18 - tokenDecimals));
+        } else {
+            return amount / (10 ** (tokenDecimals - 18));
+        }
+    }
+
+    /**
+     * @dev Denormalize amount from 18 decimals back to token's native decimals
+     * @param amount Amount in 18 decimals
+     * @param tokenDecimals Token's decimal places
+     * @return Denormalized amount (token's native decimals)
+     */
+    function _denormalize(uint256 amount, uint8 tokenDecimals) private pure returns (uint256) {
+        if (tokenDecimals == 18) {
+            return amount;
+        } else if (tokenDecimals < 18) {
+            return amount / (10 ** (18 - tokenDecimals));
+        } else {
+            return amount * (10 ** (tokenDecimals - 18));
+        }
+    }
+
+    /**
      * @dev Calculate SAMM swap internally using research paper formula
      * Implements: tf_SAMM(RA,RB,OA) = (RB/RA) × OA × max{rmin, β1×(OA/RA) + rmax}
+     * 
+     * NOTE: All calculations are done in normalized 18-decimal space to handle
+     * tokens with different decimal places correctly.
+     * 
+     * @param amountOut Desired output amount (in output token's native decimals)
+     * @param inputReserve Input token reserve (in input token's native decimals)
+     * @param outputReserve Output token reserve (in output token's native decimals)
+     * @param inputDecimals Input token's decimal places
+     * @param outputDecimals Output token's decimal places
+     * @return SwapResult with amounts in respective token's native decimals
      */
     function _calculateSwapSAMM(
         uint256 amountOut,
         uint256 inputReserve,
-        uint256 outputReserve
+        uint256 outputReserve,
+        uint8 inputDecimals,
+        uint8 outputDecimals
     ) private view returns (SwapResult memory) {
-        // Calculate trade fee using SAMM research paper formula
-        uint256 tradeFee = SAMMFees.calculateFeeSAMM(
-            amountOut,
-            outputReserve,
-            inputReserve,
+        // Normalize all amounts to 18 decimals for calculations
+        uint256 amountOutNorm = _normalize(amountOut, outputDecimals);
+        uint256 inputReserveNorm = _normalize(inputReserve, inputDecimals);
+        uint256 outputReserveNorm = _normalize(outputReserve, outputDecimals);
+
+        // Calculate trade fee using SAMM research paper formula (in normalized space)
+        uint256 tradeFeeNorm = SAMMFees.calculateFeeSAMM(
+            amountOutNorm,
+            outputReserveNorm,
+            inputReserveNorm,
             beta1,
             rmin,
             rmax
         );
 
-        // Calculate owner fee (traditional percentage)
-        uint256 ownerFee = SAMMFees.ownerTradingFee(
-            amountOut,
+        // Calculate owner fee (traditional percentage) (in normalized space)
+        uint256 ownerFeeNorm = SAMMFees.ownerTradingFee(
+            amountOutNorm,
             ownerFeeNumerator,
             ownerFeeDenominator
         );
 
-        // Calculate input amount needed (without fees) using constant product
-        (uint256 sourceAmountSwapped, ) = SAMMCurve.swapRevert(
-            amountOut,
-            inputReserve,
-            outputReserve
+        // Calculate input amount needed (without fees) using constant product (in normalized space)
+        (uint256 sourceAmountSwappedNorm, ) = SAMMCurve.swapRevert(
+            amountOutNorm,
+            inputReserveNorm,
+            outputReserveNorm
         );
 
-        // Total input = base amount + fees
-        uint256 totalAmountIn = sourceAmountSwapped + tradeFee + ownerFee;
+        // Total input = base amount + fees (in normalized space)
+        uint256 totalAmountInNorm = sourceAmountSwappedNorm + tradeFeeNorm + ownerFeeNorm;
+
+        // Denormalize back to token's native decimals
+        uint256 totalAmountIn = _denormalize(totalAmountInNorm, inputDecimals);
+        uint256 tradeFee = _denormalize(tradeFeeNorm, inputDecimals);
+        uint256 ownerFee = _denormalize(ownerFeeNorm, inputDecimals);
 
         return SwapResult({
             amountIn: totalAmountIn,

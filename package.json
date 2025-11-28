@@ -19,6 +19,8 @@
     "deploy:testnet": "hardhat run scripts/deploy.js --network testnet",
     "node": "hardhat node",
     "clean": "hardhat clean && rm -rf cache artifacts",
+    "backend": "node start-unified-backend.js",
+    "backend:test": "node test-unified-backend.js",
     "service:dev": "cd services && npm run dev",
     "service:start": "cd services && npm start",
     "validate:setup": "node scripts/validate-multi-chain-setup.js",
@@ -67,6 +69,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.0",
+    "axios": "^1.13.2",
     "dotenv": "^16.0.0",
     "express": "^5.1.0",
     "supertest": "^7.1.4"

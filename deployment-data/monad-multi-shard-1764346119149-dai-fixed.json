@@ -1,0 +1,89 @@
+{
+  "network": "Monad Testnet",
+  "chainId": 10143,
+  "timestamp": "2025-11-28T11:41:03.991Z",
+  "deployer": "0x004566C322f5F1CBC0594928556441f8D38EA589",
+  "sammCoreFeature": "Multiple shards per token pair",
+  "contracts": {
+    "factory": "0x70fe868ac814CC197631B60eEEaEaa1553418D03",
+    "tokens": [
+      {
+        "symbol": "USDC",
+        "address": "0x67DcA5710a9dA091e00093dF04765d711759f435"
+      },
+      {
+        "symbol": "USDT",
+        "address": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F"
+      },
+      {
+        "symbol": "DAI",
+        "address": "0x60CB213FCd1616FbBD44319Eb11A35d5671E692e"
+      }
+    ],
+    "shards": [
+      {
+        "name": "USDC/USDT-1",
+        "pairName": "USDC/USDT",
+        "address": "0x686ff8090b18C0DF4f828f02deAf122CeC40B1DE",
+        "tokenA": "0x67DcA5710a9dA091e00093dF04765d711759f435",
+        "tokenB": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F",
+        "liquidity": "100.0"
+      },
+      {
+        "name": "USDC/USDT-2",
+        "pairName": "USDC/USDT",
+        "address": "0x0481CD694F9C4EfC925C694f49835547404c0460",
+        "tokenA": "0x67DcA5710a9dA091e00093dF04765d711759f435",
+        "tokenB": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F",
+        "liquidity": "500.0"
+      },
+      {
+        "name": "USDC/USDT-3",
+        "pairName": "USDC/USDT",
+        "address": "0x49ac6067BB0b6d5b793e9F3af3CD78b3a108AA5a",
+        "tokenA": "0x67DcA5710a9dA091e00093dF04765d711759f435",
+        "tokenB": "0x1888FF2446f2542cbb399eD179F4d6d966268C1F",
+        "liquidity": "1000.0"
+      },
+      {
+        "name": "USDC/DAI-1",
+        "pairName": "USDC/DAI",
+        "address": "0xdfE2C795465873c000a84A55dACb834226373e56",
+        "tokenA": "0x67DcA5710a9dA091e00093dF04765d711759f435",
+        "tokenB": "0x60CB213FCd1616FbBD44319Eb11A35d5671E692e",
+        "liquidity": "200.0"
+      },
+      {
+        "name": "USDC/DAI-2",
+        "pairName": "USDC/DAI",
+        "address": "0x67d3255147fa07adc747E76055f89b78aa4021c5",
+        "tokenA": "0x67DcA5710a9dA091e00093dF04765d711759f435",
+        "tokenB": "0x60CB213FCd1616FbBD44319Eb11A35d5671E692e",
+        "liquidity": "800.0"
+      }
+    ]
+  },
+  "multiShardStats": {
+    "totalShards": 5,
+    "usdcUsdtShards": 3,
+    "usdcDaiShards": 2,
+    "demonstratesMultiShardArchitecture": true
+  },
+  "lastUpdated": "2025-11-28T16:08:39.149Z",
+  "daiPoolsFix": {
+    "timestamp": "2025-11-28T16:08:39.149Z",
+    "poolsFixed": 0,
+    "totalLiquidityAdded": {
+      "usdc": 0,
+      "dai": 0
+    },
+    "fixedPools": []
+  },
+  "multiHopStatus": {
+    "usdtToDai": "active",
+    "daiToUsdt": "active",
+    "routingPools": [
+      "0x686ff8090b18C0DF4f828f02deAf122CeC40B1DE"
+    ]
+  }
+}
