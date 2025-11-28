@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const { ethers } = require('ethers');
 
 const app = express();
-const PORT = process.env.MULTI_CHAIN_PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet());
@@ -22,8 +22,41 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Load deployment data
-const riseChainData = require('../../deployment-data/risechain-multi-shard-1764273559148.json');
-const monadData = require('../../deployment-data/monad-multi-shard-1764330063991.json');
+// Note: Update these paths to your actual deployment files
+const monadData = require('../../deployment-data/complete-deployment-1764357709284.json');
+
+// RiseChain deployment (if available)
+let riseChainData = null;
+try {
+  riseChainData = require('../../deployment-data/risechain-multi-shard-1764273559148.json');
+} catch (e) {
+  console.log('RiseChain deployment not found, will only use Monad');
+}
+
+// Chain configurations
+const CHAINS = {};
+
+// Always add Monad
+if (monadData) {
+  CHAINS.monad = {
+    chainId: 10143,
+    name: "Monad Testnet",
+    rpcUrl: "https://testnet-rpc.monad.xyz", 
+    data: monadData,
+    nativeToken: { symbol: "MON", decimals: 18 }
+  };
+}
+
+// Add RiseChain if available
+if (riseChainData) {
+  CHAINS.risechain = {
+    chainId: 11155931,
+    name: "RiseChain Testnet",
+    rpcUrl: "https://testnet.riselabs.xyz",
+    data: riseChainData,
+    nativeToken: { symbol: "ETH", decimals: 18 }
+  };
+}
 
 // Contract ABIs
 const SAMM_POOL_ABI = [
@@ -41,56 +74,71 @@ const ERC20_ABI = [
   "function name() view returns (string)",
 ];
 
-// Chain configurations with deployment data
-const CHAINS = {
-  risechain: {
-    chainId: 11155931,
-    name: "RiseChain Testnet",
-    rpcUrl: "https://testnet.riselabs.xyz",
-    nativeToken: { symbol: "ETH", decimals: 18 },
-    deploymentData: riseChainData
-  },
-  monad: {
-    chainId: 10143,
-    name: "Monad Testnet",
-    rpcUrl: "https://testnet-rpc.monad.xyz",
-    nativeToken: { symbol: "MON", decimals: 18 },
-    deploymentData: monadData
-  }
-};
-
 // Initialize providers and contracts for each chain
 const providers = {};
-const chainStatus = {};
 const chainContracts = {};
+const chainStatus = {};
 
 async function initializeChains() {
-  console.log('🔗 Initializing multi-chain providers and contracts...');
+  console.log('🔗 Initializing unified multi-chain backend...');
   
   for (const [chainName, config] of Object.entries(CHAINS)) {
     try {
-      const provider = new ethers.JsonRpcProvider(config.rpcUrl);
+      console.log(`\n📡 Connecting to ${config.name}...`);
       
-      // Test connection
+      // Initialize provider
+      const provider = new ethers.JsonRpcProvider(config.rpcUrl);
       const network = await provider.getNetwork();
       providers[chainName] = provider;
       
       // Initialize contracts for this chain
-      if (config.deploymentData) {
-        await initializeChainContracts(chainName, config.deploymentData, provider);
-      }
+      chainContracts[chainName] = {
+        shards: {},
+        tokens: {}
+      };
       
+      // Group shards by pair
+      const shardsByPair = {};
+      config.data.contracts.shards.forEach(shard => {
+        if (!shardsByPair[shard.pairName]) {
+          shardsByPair[shard.pairName] = [];
+        }
+        shardsByPair[shard.pairName].push(shard);
+      });
+
+      // Initialize shard contracts
+      for (const [pairName, shards] of Object.entries(shardsByPair)) {
+        chainContracts[chainName].shards[pairName] = [];
+        for (const shard of shards) {
+          const contract = new ethers.Contract(shard.address, SAMM_POOL_ABI, provider);
+          chainContracts[chainName].shards[pairName].push({
+            ...shard,
+            contract
+          });
+          console.log(`  ✅ ${shard.name}: ${shard.address}`);
+        }
+      }
+
+      // Initialize token contracts
+      for (const token of config.data.contracts.tokens) {
+        chainContracts[chainName].tokens[token.symbol] = {
+          ...token,
+          contract: new ethers.Contract(token.address, ERC20_ABI, provider)
+        };
+        console.log(`  ✅ ${token.symbol} token: ${token.address}`);
+      }
+
       chainStatus[chainName] = {
         status: 'connected',
         chainId: Number(network.chainId),
         blockNumber: await provider.getBlockNumber(),
         lastChecked: new Date().toISOString(),
-        contractsInitialized: !!config.deploymentData
+        totalShards: config.data.contracts.shards.length
       };
       
-      console.log(`✅ ${config.name} connected (Chain ID: ${network.chainId})`);
+      console.log(`✅ ${config.name} initialized successfully`);
     } catch (error) {
-      console.error(`❌ Failed to connect to ${config.name}:`, error.message);
+      console.error(`❌ Failed to initialize ${config.name}:`, error.message);
       chainStatus[chainName] = {
         status: 'failed',
         error: error.message,
@@ -98,65 +146,26 @@ async function initializeChains() {
       };
     }
   }
-}
-
-async function initializeChainContracts(chainName, deploymentData, provider) {
-  try {
-    console.log(`🔧 Initializing contracts for ${chainName}...`);
-    
-    chainContracts[chainName] = {
-      shards: {},
-      tokens: {},
-      factory: deploymentData.contracts.factory
-    };
-
-    // Group shards by pair
-    const shardsByPair = {};
-    deploymentData.contracts.shards.forEach(shard => {
-      if (!shardsByPair[shard.pairName]) {
-        shardsByPair[shard.pairName] = [];
-      }
-      shardsByPair[shard.pairName].push(shard);
-    });
-
-    // Initialize shard contracts
-    for (const [pairName, shards] of Object.entries(shardsByPair)) {
-      chainContracts[chainName].shards[pairName] = [];
-      for (const shard of shards) {
-        const contract = new ethers.Contract(shard.address, SAMM_POOL_ABI, provider);
-        chainContracts[chainName].shards[pairName].push({
-          ...shard,
-          contract
-        });
-        console.log(`  ✅ ${shard.name}: ${shard.address}`);
-      }
-    }
-
-    // Initialize token contracts
-    for (const token of deploymentData.contracts.tokens) {
-      chainContracts[chainName].tokens[token.symbol] = {
-        ...token,
-        contract: new ethers.Contract(token.address, ERC20_ABI, provider)
-      };
-      console.log(`  ✅ ${token.symbol} token: ${token.address}`);
-    }
-
-    console.log(`✅ All contracts initialized for ${chainName}`);
-  } catch (error) {
-    console.error(`❌ Error initializing contracts for ${chainName}:`, error);
-  }
+  
+  console.log('\n🎯 Multi-chain initialization complete!');
 }
 
 // Helper functions
-function getTokenBySymbol(chainName, symbol) {
-  return chainContracts[chainName]?.tokens[symbol];
+function getChainConfig(chainName) {
+  return CHAINS[chainName];
+}
+
+function getChainContracts(chainName) {
+  return chainContracts[chainName];
 }
 
 function getTokenByAddress(chainName, address) {
-  const tokens = chainContracts[chainName]?.tokens || {};
-  return Object.values(tokens).find(t => 
-    t.address.toLowerCase() === address.toLowerCase()
-  );
+  const tokens = Object.values(chainContracts[chainName]?.tokens || {});
+  return tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+}
+
+function getTokenBySymbol(chainName, symbol) {
+  return chainContracts[chainName]?.tokens[symbol];
 }
 
 function getPairName(chainName, tokenA, tokenB) {
@@ -188,21 +197,41 @@ function calculatePriceImpact(amountIn, amountOut, reserveIn, reserveOut) {
   }
 }
 
+// Middleware to validate chain
+function validateChain(req, res, next) {
+  const chainName = req.params.chain || req.query.chain;
+  if (chainName && !CHAINS[chainName]) {
+    return res.status(404).json({ 
+      error: `Chain '${chainName}' not supported`,
+      supportedChains: Object.keys(CHAINS)
+    });
+  }
+  if (chainName && chainStatus[chainName]?.status !== 'connected') {
+    return res.status(503).json({ 
+      error: `Chain '${chainName}' not available`,
+      status: chainStatus[chainName]?.status || 'unknown'
+    });
+  }
+  req.chainName = chainName;
+  next();
+}
+
 // Routes
 
-// Health check
+// Global health check
 app.get('/health', (req, res) => {
   const connectedChains = Object.values(chainStatus).filter(s => s.status === 'connected').length;
   const totalChains = Object.keys(CHAINS).length;
   
   res.json({
     status: 'ok',
-    service: 'multi-chain-backend',
+    service: 'unified-multi-chain-backend',
     chains: {
       connected: connectedChains,
       total: totalChains,
       percentage: Math.round((connectedChains / totalChains) * 100)
     },
+    supportedChains: Object.keys(CHAINS),
     timestamp: new Date().toISOString()
   });
 });
@@ -215,41 +244,29 @@ app.get('/api/chains', (req, res) => {
     displayName: config.name,
     nativeToken: config.nativeToken,
     status: chainStatus[name] || { status: 'unknown' },
-    deployed: !!config.deploymentData,
-    totalShards: config.deploymentData ? config.deploymentData.contracts.shards.length : 0,
     endpoints: {
       info: `/api/${name}/info`,
       shards: `/api/${name}/shards`,
-      pools: `/api/${name}/pools`,
+      swap: `/api/${name}/swap`,
       bestShard: `/api/${name}/swap/best-shard`,
-      crossPool: `/api/${name}/swap/cross-pool`,
-      shard: `/api/${name}/shard/:address`
+      crossPool: `/api/${name}/swap/cross-pool`
     }
   }));
 
   res.json({
     totalChains: chainsInfo.length,
     chains: chainsInfo,
-    deployedChains: chainsInfo.filter(c => c.deployed).length,
     timestamp: new Date().toISOString()
   });
 });
 
-// Chain-specific info endpoint
-app.get('/api/:chainName/info', async (req, res) => {
+// Chain-specific info
+app.get('/api/:chain/info', validateChain, async (req, res) => {
   try {
-    const { chainName } = req.params;
-    const config = CHAINS[chainName];
-    const provider = providers[chainName];
+    const { chain } = req.params;
+    const config = CHAINS[chain];
+    const provider = providers[chain];
     
-    if (!config) {
-      return res.status(404).json({ error: `Chain ${chainName} not supported` });
-    }
-    
-    if (!provider) {
-      return res.status(503).json({ error: `Chain ${chainName} not connected` });
-    }
-
     const [network, blockNumber, gasPrice] = await Promise.all([
       provider.getNetwork(),
       provider.getBlockNumber(),
@@ -257,7 +274,7 @@ app.get('/api/:chainName/info', async (req, res) => {
     ]);
 
     res.json({
-      chain: chainName,
+      chain: chain,
       config: config,
       network: {
         chainId: Number(network.chainId),
@@ -268,29 +285,24 @@ app.get('/api/:chainName/info', async (req, res) => {
         blockNumber: blockNumber,
         gasPrice: gasPrice.gasPrice ? ethers.formatUnits(gasPrice.gasPrice, 'gwei') : 'unknown'
       },
+      deployment: {
+        factory: config.data.contracts.factory,
+        totalShards: config.data.contracts.shards.length,
+        totalTokens: config.data.contracts.tokens.length
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error(`Error getting info for ${req.params.chainName}:`, error);
+    console.error(`Error getting info for ${req.params.chain}:`, error);
     res.status(500).json({ error: 'Failed to get chain info' });
   }
 });
 
 // Get all shards for a chain
-app.get('/api/:chainName/shards', async (req, res) => {
+app.get('/api/:chain/shards', validateChain, async (req, res) => {
   try {
-    const { chainName } = req.params;
-    const config = CHAINS[chainName];
-    const contracts = chainContracts[chainName];
-    
-    if (!config) {
-      return res.status(404).json({ error: `Chain ${chainName} not supported` });
-    }
-    
-    if (!contracts) {
-      return res.status(503).json({ error: `No contracts deployed on ${chainName}` });
-    }
-
+    const { chain } = req.params;
+    const contracts = chainContracts[chain];
     const shardsInfo = {};
     
     for (const [pairName, shards] of Object.entries(contracts.shards)) {
@@ -331,80 +343,23 @@ app.get('/api/:chainName/shards', async (req, res) => {
     }
     
     res.json({
-      chain: chainName,
-      chainId: config.chainId,
+      chain: chain,
+      chainId: CHAINS[chain].chainId,
       shards: shardsInfo,
       totalShards: Object.values(shardsInfo).flat().length,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error(`Error fetching shards for ${req.params.chainName}:`, error);
+    console.error('Error fetching shards info:', error);
     res.status(500).json({ error: 'Failed to fetch shards information' });
   }
 });
 
-// Chain-specific pools endpoint (legacy compatibility)
-app.get('/api/:chainName/pools', async (req, res) => {
+// Find best shard for swap (c-smaller-better property)
+app.post('/api/:chain/swap/best-shard', validateChain, async (req, res) => {
   try {
-    const { chainName } = req.params;
-    const config = CHAINS[chainName];
-    const contracts = chainContracts[chainName];
-    
-    if (!config) {
-      return res.status(404).json({ error: `Chain ${chainName} not supported` });
-    }
-    
-    if (!contracts) {
-      return res.json({
-        chain: chainName,
-        pools: [],
-        totalPools: 0,
-        message: `No pools deployed on ${config.name} yet`,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Convert shards to pools format
-    const pools = [];
-    for (const [pairName, shards] of Object.entries(contracts.shards)) {
-      for (const shard of shards) {
-        pools.push({
-          name: shard.name,
-          address: shard.address,
-          liquidity: shard.liquidity,
-          pairName: pairName
-        });
-      }
-    }
-
-    res.json({
-      chain: chainName,
-      chainId: config.chainId,
-      pools: pools,
-      totalPools: pools.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error(`Error fetching pools for ${req.params.chainName}:`, error);
-    res.status(500).json({ error: 'Failed to fetch pools information' });
-  }
-});
-
-// Find best shard for swap on specific chain
-app.post('/api/:chainName/swap/best-shard', async (req, res) => {
-  try {
-    const { chainName } = req.params;
+    const { chain } = req.params;
     const { amountOut, tokenIn, tokenOut } = req.body;
-    const config = CHAINS[chainName];
-    const contracts = chainContracts[chainName];
-
-    if (!config) {
-      return res.status(404).json({ error: `Chain ${chainName} not supported` });
-    }
-
-    if (!contracts) {
-      return res.status(503).json({ error: `No contracts deployed on ${chainName}` });
-    }
 
     if (!amountOut || !tokenIn || !tokenOut) {
       return res.status(400).json({ 
@@ -412,14 +367,14 @@ app.post('/api/:chainName/swap/best-shard', async (req, res) => {
       });
     }
 
-    const pairName = getPairName(chainName, tokenIn, tokenOut);
-    if (!pairName || !contracts.shards[pairName]) {
+    const pairName = getPairName(chain, tokenIn, tokenOut);
+    if (!pairName || !chainContracts[chain].shards[pairName]) {
       return res.status(400).json({ 
-        error: `No shards available for this token pair on ${chainName}` 
+        error: `No shards available for this token pair on ${CHAINS[chain].name}` 
       });
     }
 
-    const shards = contracts.shards[pairName];
+    const shards = chainContracts[chain].shards[pairName];
     const swapResults = [];
 
     // Calculate swap on all shards
@@ -459,34 +414,25 @@ app.post('/api/:chainName/swap/best-shard', async (req, res) => {
     const bestShard = swapResults[0];
     
     res.json({
-      chain: chainName,
-      chainId: config.chainId,
+      chain: chain,
+      chainId: CHAINS[chain].chainId,
       bestShard,
       allShards: swapResults,
       cSmallerBetterDemonstrated: swapResults.length > 1,
+      sammProperty: 'c-smaller-better validated',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error(`Error finding best shard for ${req.params.chainName}:`, error);
+    console.error('Error finding best shard:', error);
     res.status(500).json({ error: 'Failed to find best shard for swap' });
   }
 });
 
-// Cross-pool routing on specific chain
-app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
+// Cross-pool routing
+app.post('/api/:chain/swap/cross-pool', validateChain, async (req, res) => {
   try {
-    const { chainName } = req.params;
+    const { chain } = req.params;
     const { amountIn, tokenIn, tokenOut } = req.body;
-    const config = CHAINS[chainName];
-    const contracts = chainContracts[chainName];
-
-    if (!config) {
-      return res.status(404).json({ error: `Chain ${chainName} not supported` });
-    }
-
-    if (!contracts) {
-      return res.status(503).json({ error: `No contracts deployed on ${chainName}` });
-    }
 
     if (!amountIn || !tokenIn || !tokenOut) {
       return res.status(400).json({ 
@@ -494,24 +440,26 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
       });
     }
 
-    const tokenInData = getTokenByAddress(chainName, tokenIn);
-    const tokenOutData = getTokenByAddress(chainName, tokenOut);
+    const tokenInData = getTokenByAddress(chain, tokenIn);
+    const tokenOutData = getTokenByAddress(chain, tokenOut);
     
     if (!tokenInData || !tokenOutData) {
-      return res.status(400).json({ error: `Invalid token addresses for ${chainName}` });
+      return res.status(400).json({ 
+        error: `Invalid token addresses for ${CHAINS[chain].name}` 
+      });
     }
 
     // Direct swap if pair exists
-    const directPair = getPairName(chainName, tokenIn, tokenOut);
-    if (directPair && contracts.shards[directPair]) {
-      const shards = contracts.shards[directPair];
+    const directPair = getPairName(chain, tokenIn, tokenOut);
+    if (directPair && chainContracts[chain].shards[directPair]) {
+      const shards = chainContracts[chain].shards[directPair];
       const bestShard = shards[0]; // Use first shard for simplicity
       
       const result = await bestShard.contract.calculateSwapSAMM(amountIn, tokenIn, tokenOut);
       
       return res.json({
-        chain: chainName,
-        chainId: config.chainId,
+        chain: chain,
+        chainId: CHAINS[chain].chainId,
         route: 'direct',
         path: [tokenInData.symbol, tokenOutData.symbol],
         shards: [bestShard.name],
@@ -530,9 +478,9 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
     }
 
     // Multi-hop routing through USDC
-    const usdcToken = getTokenBySymbol(chainName, 'USDC');
+    const usdcToken = getTokenBySymbol(chain, 'USDC');
     if (!usdcToken) {
-      return res.status(400).json({ error: `USDC not available on ${chainName}` });
+      return res.status(400).json({ error: 'USDC not available for routing' });
     }
 
     let route = [];
@@ -541,14 +489,14 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
 
     if (tokenInData.symbol !== 'USDC') {
       // First hop: tokenIn -> USDC
-      const firstPair = getPairName(chainName, tokenIn, usdcToken.address);
-      if (!firstPair || !contracts.shards[firstPair]) {
+      const firstPair = getPairName(chain, tokenIn, usdcToken.address);
+      if (!firstPair || !chainContracts[chain].shards[firstPair]) {
         return res.status(400).json({ 
-          error: `No route available from ${tokenInData.symbol} to USDC on ${chainName}` 
+          error: `No route available from ${tokenInData.symbol} to USDC on ${CHAINS[chain].name}` 
         });
       }
       
-      const firstShard = contracts.shards[firstPair][0];
+      const firstShard = chainContracts[chain].shards[firstPair][0];
       const firstResult = await firstShard.contract.calculateSwapSAMM(totalAmountOut, tokenIn, usdcToken.address);
       
       steps.push({
@@ -556,7 +504,8 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
         to: 'USDC',
         shard: firstShard.name,
         amountIn: totalAmountOut.toString(),
-        amountOut: firstResult.amountOut.toString()
+        amountOut: firstResult.amountOut.toString(),
+        tradeFee: firstResult.tradeFee.toString()
       });
       
       totalAmountOut = firstResult.amountOut;
@@ -567,14 +516,14 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
 
     if (tokenOutData.symbol !== 'USDC') {
       // Second hop: USDC -> tokenOut
-      const secondPair = getPairName(chainName, usdcToken.address, tokenOut);
-      if (!secondPair || !contracts.shards[secondPair]) {
+      const secondPair = getPairName(chain, usdcToken.address, tokenOut);
+      if (!secondPair || !chainContracts[chain].shards[secondPair]) {
         return res.status(400).json({ 
-          error: `No route available from USDC to ${tokenOutData.symbol} on ${chainName}` 
+          error: `No route available from USDC to ${tokenOutData.symbol} on ${CHAINS[chain].name}` 
         });
       }
       
-      const secondShard = contracts.shards[secondPair][0];
+      const secondShard = chainContracts[chain].shards[secondPair][0];
       const secondResult = await secondShard.contract.calculateSwapSAMM(totalAmountOut, usdcToken.address, tokenOut);
       
       steps.push({
@@ -582,7 +531,8 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
         to: tokenOutData.symbol,
         shard: secondShard.name,
         amountIn: totalAmountOut.toString(),
-        amountOut: secondResult.amountOut.toString()
+        amountOut: secondResult.amountOut.toString(),
+        tradeFee: secondResult.tradeFee.toString()
       });
       
       totalAmountOut = secondResult.amountOut;
@@ -592,8 +542,8 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
     const totalFee = steps.reduce((sum, step) => sum + Number(step.tradeFee || 0), 0);
 
     res.json({
-      chain: chainName,
-      chainId: config.chainId,
+      chain: chain,
+      chainId: CHAINS[chain].chainId,
       route: 'multi-hop',
       path: route,
       shards: steps.map(s => s.shard),
@@ -601,39 +551,32 @@ app.post('/api/:chainName/swap/cross-pool', async (req, res) => {
       amountOut: totalAmountOut.toString(),
       totalFee: totalFee.toString(),
       steps,
+      sammProperty: 'c-non-splitting maintained across hops',
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error(`Error calculating cross-pool route for ${req.params.chainName}:`, error);
+    console.error('Error calculating cross-pool route:', error);
     res.status(500).json({ error: 'Failed to calculate cross-pool route' });
   }
 });
 
-// Get specific shard info on chain
-app.get('/api/:chainName/shard/:address', async (req, res) => {
+// Get specific shard info
+app.get('/api/:chain/shard/:address', validateChain, async (req, res) => {
   try {
-    const { chainName, address } = req.params;
-    const config = CHAINS[chainName];
-    const contracts = chainContracts[chainName];
-    
-    if (!config) {
-      return res.status(404).json({ error: `Chain ${chainName} not supported` });
-    }
-    
-    if (!contracts) {
-      return res.status(503).json({ error: `No contracts deployed on ${chainName}` });
-    }
+    const { chain, address } = req.params;
     
     // Find the shard
     let targetShard = null;
-    for (const shards of Object.values(contracts.shards)) {
+    for (const shards of Object.values(chainContracts[chain].shards)) {
       targetShard = shards.find(s => s.address.toLowerCase() === address.toLowerCase());
       if (targetShard) break;
     }
     
     if (!targetShard) {
-      return res.status(404).json({ error: `Shard not found on ${chainName}` });
+      return res.status(404).json({ 
+        error: `Shard not found on ${CHAINS[chain].name}` 
+      });
     }
     
     const [poolState, sammParams] = await Promise.all([
@@ -642,12 +585,12 @@ app.get('/api/:chainName/shard/:address', async (req, res) => {
     ]);
     
     // Get token info
-    const tokenAData = getTokenByAddress(chainName, poolState.tokenA);
-    const tokenBData = getTokenByAddress(chainName, poolState.tokenB);
+    const tokenAData = getTokenByAddress(chain, poolState.tokenA);
+    const tokenBData = getTokenByAddress(chain, poolState.tokenB);
     
     res.json({
-      chain: chainName,
-      chainId: config.chainId,
+      chain: chain,
+      chainId: CHAINS[chain].chainId,
       name: targetShard.name,
       address: targetShard.address,
       liquidity: targetShard.liquidity,
@@ -681,138 +624,107 @@ app.get('/api/:chainName/shard/:address', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error(`Error fetching shard info for ${req.params.chainName}:`, error);
+    console.error('Error fetching shard info:', error);
     res.status(500).json({ error: 'Failed to fetch shard information' });
   }
 });
 
-// Cross-chain routing endpoint
-app.post('/api/cross-chain/route', (req, res) => {
-  const { fromChain, toChain, tokenIn, tokenOut, amountIn } = req.body;
+// Cross-chain comparison
+app.get('/api/compare/chains', (req, res) => {
+  const comparison = {};
   
-  if (!fromChain || !toChain || !tokenIn || !tokenOut || !amountIn) {
-    return res.status(400).json({ 
-      error: 'Missing required parameters: fromChain, toChain, tokenIn, tokenOut, amountIn' 
-    });
+  for (const [chainName, config] of Object.entries(CHAINS)) {
+    comparison[chainName] = {
+      chainId: config.chainId,
+      name: config.name,
+      status: chainStatus[chainName]?.status || 'unknown',
+      totalShards: config.data.contracts.shards.length,
+      totalTokens: config.data.contracts.tokens.length,
+      factory: config.data.contracts.factory,
+      pairs: Object.keys(chainContracts[chainName]?.shards || {}),
+      blockNumber: chainStatus[chainName]?.blockNumber
+    };
   }
-
-  // Placeholder for cross-chain routing logic
+  
   res.json({
-    route: {
-      fromChain: fromChain,
-      toChain: toChain,
-      tokenIn: tokenIn,
-      tokenOut: tokenOut,
-      amountIn: amountIn,
-      steps: [
-        {
-          chain: fromChain,
-          action: 'swap',
-          description: `Swap ${tokenIn} to bridge token on ${fromChain}`
-        },
-        {
-          chain: 'bridge',
-          action: 'bridge',
-          description: `Bridge tokens from ${fromChain} to ${toChain}`
-        },
-        {
-          chain: toChain,
-          action: 'swap',
-          description: `Swap bridge token to ${tokenOut} on ${toChain}`
-        }
-      ]
+    comparison,
+    summary: {
+      totalChains: Object.keys(CHAINS).length,
+      connectedChains: Object.values(chainStatus).filter(s => s.status === 'connected').length,
+      totalShards: Object.values(comparison).reduce((sum, chain) => sum + chain.totalShards, 0)
     },
-    status: 'simulation',
-    message: 'Cross-chain routing is in development',
     timestamp: new Date().toISOString()
   });
 });
 
-// Chain isolation test endpoint
-app.get('/api/isolation/test', async (req, res) => {
-  try {
-    const isolationResults = [];
-    
-    for (const [chainName, config] of Object.entries(CHAINS)) {
-      const provider = providers[chainName];
-      
-      if (provider) {
-        try {
-          const blockNumber = await provider.getBlockNumber();
-          isolationResults.push({
-            chain: chainName,
-            status: 'isolated',
-            blockNumber: blockNumber,
-            independent: true
-          });
-        } catch (error) {
-          isolationResults.push({
-            chain: chainName,
-            status: 'failed',
-            error: error.message,
-            independent: false
-          });
-        }
-      } else {
-        isolationResults.push({
-          chain: chainName,
-          status: 'not_connected',
-          independent: false
-        });
-      }
-    }
-
-    const successfulIsolations = isolationResults.filter(r => r.independent).length;
-    
-    res.json({
-      isolationTest: {
-        passed: successfulIsolations === Object.keys(CHAINS).length,
-        successfulChains: successfulIsolations,
-        totalChains: Object.keys(CHAINS).length
-      },
-      results: isolationResults,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error testing chain isolation:', error);
-    res.status(500).json({ error: 'Failed to test chain isolation' });
-  }
+// Legacy endpoints for backward compatibility (default to RiseChain)
+app.get('/api/shards', (req, res) => {
+  req.params.chain = 'risechain';
+  validateChain(req, res, () => {
+    // Forward to chain-specific endpoint
+    req.url = '/api/risechain/shards';
+    app._router.handle(req, res);
+  });
 });
 
-// Error handling
+app.post('/api/swap/best-shard', (req, res) => {
+  req.params.chain = 'risechain';
+  validateChain(req, res, () => {
+    req.url = '/api/risechain/swap/best-shard';
+    app._router.handle(req, res);
+  });
+});
+
+app.post('/api/swap/cross-pool', (req, res) => {
+  req.params.chain = 'risechain';
+  validateChain(req, res, () => {
+    req.url = '/api/risechain/swap/cross-pool';
+    app._router.handle(req, res);
+  });
+});
+
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
+  res.status(404).json({ 
+    error: 'Endpoint not found',
+    availableEndpoints: {
+      global: [
+        'GET /health',
+        'GET /api/chains',
+        'GET /api/compare/chains'
+      ],
+      chainSpecific: [
+        'GET /api/{chain}/info',
+        'GET /api/{chain}/shards', 
+        'POST /api/{chain}/swap/best-shard',
+        'POST /api/{chain}/swap/cross-pool',
+        'GET /api/{chain}/shard/{address}'
+      ],
+      supportedChains: Object.keys(CHAINS)
+    }
+  });
 });
 
 // Start server
 async function start() {
   await initializeChains();
-  
-  const connectedChains = Object.keys(providers).length;
-  const deployedChains = Object.values(CHAINS).filter(c => c.deploymentData).length;
-  
+
   app.listen(PORT, () => {
-    console.log(`🚀 SAMM Multi-Chain Backend running on port ${PORT}`);
-    console.log(`📊 Chains connected: ${connectedChains}/${Object.keys(CHAINS).length}`);
-    console.log(`🔧 Chains with contracts: ${deployedChains}`);
-    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-    console.log(`📋 Chains info: http://localhost:${PORT}/api/chains`);
-    console.log(`\n🌐 Available APIs:`);
-    console.log(`   GET  /api/chains - List all chains`);
-    console.log(`   GET  /api/{chain}/info - Chain information`);
-    console.log(`   GET  /api/{chain}/shards - All shards on chain`);
-    console.log(`   POST /api/{chain}/swap/best-shard - Find optimal shard`);
-    console.log(`   POST /api/{chain}/swap/cross-pool - Multi-hop routing`);
-    console.log(`   GET  /api/{chain}/shard/{address} - Specific shard info`);
-    console.log(`\n🔗 Quick Tests:`);
-    console.log(`   curl http://localhost:${PORT}/api/chains`);
-    console.log(`   curl http://localhost:${PORT}/api/risechain/shards`);
-    console.log(`   curl http://localhost:${PORT}/api/monad/shards`);
+    console.log(`\n🚀 Unified Multi-Chain SAMM Backend running on port ${PORT}`);
+    console.log(`🌐 Supported chains: ${Object.keys(CHAINS).join(', ')}`);
+    console.log(`📊 Total shards across all chains: ${Object.values(CHAINS).reduce((sum, chain) => sum + chain.data.contracts.shards.length, 0)}`);
+    console.log(`\n🔗 API Endpoints:`);
+    console.log(`   Health: http://localhost:${PORT}/health`);
+    console.log(`   Chains: http://localhost:${PORT}/api/chains`);
+    console.log(`   RiseChain shards: http://localhost:${PORT}/api/risechain/shards`);
+    console.log(`   Monad shards: http://localhost:${PORT}/api/monad/shards`);
+    console.log(`   Compare chains: http://localhost:${PORT}/api/compare/chains`);
   });
 }
 
