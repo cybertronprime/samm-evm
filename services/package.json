@@ -1,0 +1,40 @@
+{
+  "name": "samm-service",
+  "version": "1.0.0",
+  "description": "Backend service for SAMM EVM integration",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "multi-shard": "node src/multi-shard-backend.js",
+    "multi-shard-dev": "nodemon src/multi-shard-backend.js",
+    "test": "mocha test/**/*.test.js"
+  },
+  "keywords": [
+    "SAMM",
+    "AMM",
+    "DeFi",
+    "backend"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.0",
+    "ethers": "^6.4.0",
+    "dotenv": "^16.0.0",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^6.7.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0",
+    "mocha": "^10.0.0",
+    "chai": "^4.3.0",
+    "@types/uuid": "^9.0.0",
+    "@types/express": "^4.17.0",
+    "@types/cors": "^2.8.0",
+    "fast-check": "^3.13.0",
+    "supertest": "^6.3.0"
+  }
+}

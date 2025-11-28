@@ -1,0 +1,105 @@
+{
+  "network": "RiseChain Testnet",
+  "chainId": 11155931,
+  "timestamp": "2025-11-27T19:59:19.139Z",
+  "deployer": "0x004566C322f5F1CBC0594928556441f8D38EA589",
+  "sammCoreFeature": "Multiple shards per token pair",
+  "contracts": {
+    "factory": "0xa0Bb5eaDE9Ea3C8661881884d3a0b0565921aE48",
+    "tokens": [
+      {
+        "symbol": "USDC",
+        "address": "0x1D4a4B63733B36400BFD388937F5bE6CBd5902cb"
+      },
+      {
+        "symbol": "USDT",
+        "address": "0x2250AD5DE3eCb3C84CC0deBbfaE145E5B99835Cd"
+      },
+      {
+        "symbol": "DAI",
+        "address": "0xAdE16eAbd36F0E9dea4224a1C27FA973dDe78d43"
+      }
+    ],
+    "shards": [
+      {
+        "name": "USDC/USDT-1",
+        "pairName": "USDC/USDT",
+        "address": "0x36A3950Ed31A2875dA4df2588528BDA6d9F4709A",
+        "tokenA": "0x1D4a4B63733B36400BFD388937F5bE6CBd5902cb",
+        "tokenB": "0x2250AD5DE3eCb3C84CC0deBbfaE145E5B99835Cd",
+        "liquidity": "100.0"
+      },
+      {
+        "name": "USDC/USDT-2",
+        "pairName": "USDC/USDT",
+        "address": "0x28784E66A02Eee695086Cd05F67d9B9866AA68F0",
+        "tokenA": "0x1D4a4B63733B36400BFD388937F5bE6CBd5902cb",
+        "tokenB": "0x2250AD5DE3eCb3C84CC0deBbfaE145E5B99835Cd",
+        "liquidity": "500.0"
+      },
+      {
+        "name": "USDC/USDT-3",
+        "pairName": "USDC/USDT",
+        "address": "0x7C68ebB44C1EA6CF3c48F12AB8BF77BD5A834Db7",
+        "tokenA": "0x1D4a4B63733B36400BFD388937F5bE6CBd5902cb",
+        "tokenB": "0x2250AD5DE3eCb3C84CC0deBbfaE145E5B99835Cd",
+        "liquidity": "1000.0"
+      },
+      {
+        "name": "USDC/DAI-1",
+        "pairName": "USDC/DAI",
+        "address": "0xD80bAf05268B9c8eF662ce14D5D92860CF3D3B90",
+        "tokenA": "0x1D4a4B63733B36400BFD388937F5bE6CBd5902cb",
+        "tokenB": "0xAdE16eAbd36F0E9dea4224a1C27FA973dDe78d43",
+        "liquidity": "200.0"
+      },
+      {
+        "name": "USDC/DAI-2",
+        "pairName": "USDC/DAI",
+        "address": "0xA2eb11c134e58B9fD423b9e5C66B990C15D484D5",
+        "tokenA": "0x1D4a4B63733B36400BFD388937F5bE6CBd5902cb",
+        "tokenB": "0xAdE16eAbd36F0E9dea4224a1C27FA973dDe78d43",
+        "liquidity": "800.0"
+      }
+    ]
+  },
+  "multiShardStats": {
+    "totalShards": 5,
+    "usdcUsdtShards": 3,
+    "usdcDaiShards": 2,
+    "demonstratesMultiShardArchitecture": true
+  },
+  "testResults": {
+    "successfulSwaps": 3,
+    "totalSwapTests": 3,
+    "allShardsInitialized": true,
+    "multiShardRoutingTested": true,
+    "smallestShardSelectionDemonstrated": true
+  },
+  "swapResults": [
+    {
+      "shard": "USDC/USDT-1",
+      "liquiditySize": "100.0",
+      "swapAmount": "1.0",
+      "amountIn": "1.012101010101010102",
+      "tradeFee": "0.0015",
+      "success": true
+    },
+    {
+      "shard": "USDC/USDT-2",
+      "liquiditySize": "500.0",
+      "swapAmount": "1.0",
+      "amountIn": "1.012404008016032065",
+      "tradeFee": "0.0099",
+      "success": true
+    },
+    {
+      "shard": "USDC/USDT-3",
+      "liquiditySize": "1000.0",
+      "swapAmount": "1.0",
+      "amountIn": "1.012451001001001002",
+      "tradeFee": "0.01095",
+      "success": true
+    }
+  ]
+}
