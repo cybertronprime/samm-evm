@@ -123,4 +123,30 @@ interface ISAMMPool {
         uint256 reserveA,
         uint256 reserveB
     ) external pure returns (uint256 amountB);
+
+    /**
+     * @notice Get the address of token A
+     * @return Address of token A
+     */
+    function tokenA() external view returns (address);
+
+    /**
+     * @notice Get the address of token B
+     * @return Address of token B
+     */
+    function tokenB() external view returns (address);
+
+    /**
+     * @notice Get SAMM parameters
+     * @return beta1 β1 parameter (scaled by 1e6)
+     * @return rmin rmin parameter (scaled by 1e6)
+     * @return rmax rmax parameter (scaled by 1e6)
+     * @return c c-threshold parameter (scaled by 1e6)
+     */
+    function getSAMMParams() external view returns (
+        int256 beta1,
+        uint256 rmin,
+        uint256 rmax,
+        uint256 c
+    );
 }

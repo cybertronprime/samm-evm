@@ -1,0 +1,59 @@
+{
+  "network": "Rise Testnet",
+  "chainId": 11155931,
+  "timestamp": "2025-12-27T14:55:42.265Z",
+  "faucet": "0x983A8fe1408bBba8a1EF02641E5ECD05b9a4BA1c",
+  "tokens": [
+    {
+      "symbol": "WBTC",
+      "address": "0xD08FB4eB0E146aA02a6590221E7d74f4fc1Ce6a3",
+      "decimals": 8,
+      "amountPerRequest": 1
+    },
+    {
+      "symbol": "WETH",
+      "address": "0x489A4BD9a9698e9B0755D1741DD254C90afbA594",
+      "decimals": 18,
+      "amountPerRequest": 10
+    },
+    {
+      "symbol": "USDC",
+      "address": "0x3FfDe07200eE114f0b173505735563bd93D7814f",
+      "decimals": 6,
+      "amountPerRequest": 10000
+    },
+    {
+      "symbol": "USDT",
+      "address": "0x23dd84CBc68474BA537d76e11D29239a2CB9754F",
+      "decimals": 6,
+      "amountPerRequest": 10000
+    },
+    {
+      "symbol": "DAI",
+      "address": "0xfF9F562e690c86818a84242b38E23820c3caE20c",
+      "decimals": 18,
+      "amountPerRequest": 10000
+    },
+    {
+      "symbol": "LINK",
+      "address": "0x2C171917A571812FAa3cFd945467f99f700BCBdB",
+      "decimals": 18,
+      "amountPerRequest": 500
+    },
+    {
+      "symbol": "UNI",
+      "address": "0xf3D5C03C1437fb927d183Fe1FfCB8325b1cc1598",
+      "decimals": 18,
+      "amountPerRequest": 1000
+    },
+    {
+      "symbol": "AAVE",
+      "address": "0xad4bA4E0Ca3090946eEC92b4FB570503Fab890f9",
+      "decimals": 18,
+      "amountPerRequest": 50
+    }
+  ],
+  "productionDeployment": "deployment-data/production-risechain-1766847140276.json",
+  "router": "0x8a4ED210afE6Ed5B374CFEcBA2A5aD283FAB2fDa",
+  "factory": "0xA74a8271C02237083c53eEE4153C07252F3925a3"
+}
