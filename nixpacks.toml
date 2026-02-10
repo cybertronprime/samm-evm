@@ -2,7 +2,7 @@
 nixPkgs = ['nodejs-18_x']
 
 [phases.install]
-cmds = ['cd services && npm install --production']
+cmds = ['npm install --production']
 
 [start]
-cmd = 'cd services && node production-server.js'
+cmd = 'node api-server.js'

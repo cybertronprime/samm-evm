@@ -4,6 +4,7 @@
   "description": "SAMM (Stableswap Automated Market Maker) implementation for EVM",
   "main": "index.js",
   "scripts": {
+    "start": "node api-server.js",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:unit": "hardhat test test/unit/**/*.test.js",
