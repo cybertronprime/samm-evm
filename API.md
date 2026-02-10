@@ -158,9 +158,34 @@ List all pools with real-time reserves
 ```
 
 ### GET /pools/:tokenA/:tokenB
-Get pools for specific pair
+Get pools for specific pair (from deployment data)
 
 **Example:** `/pools/WBTC/USDC`
+
+### GET /shards/:tokenA/:tokenB
+Get all shards for a token pair from blockchain (real-time, includes user-created pools)
+
+**Example:** `/shards/USDC/DAI`
+
+**Response:**
+```json
+{
+  "tokenA": "USDC",
+  "tokenB": "DAI",
+  "shards": [
+    {
+      "address": "0x76d350Ade8775780839F8ddAE2Fdbd582F69169e",
+      "tokenA": "DAI",
+      "tokenB": "USDC",
+      "reserveA": "5000.0",
+      "reserveB": "5000.0",
+      "liquidityUSD": 10000
+    }
+  ],
+  "totalShards": 4,
+  "totalLiquidityUSD": 2110206
+}
+```
 
 ### GET /balance/:address/:token
 Get token balance for address

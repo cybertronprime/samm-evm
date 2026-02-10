@@ -212,6 +212,76 @@ app.get('/pools/:tokenA/:tokenB', async (req, res) => {
   }
 });
 
+// GET /shards/:tokenA/:tokenB - Get all shards for a pair from blockchain (real-time)
+app.get('/shards/:tokenA/:tokenB', async (req, res) => {
+  try {
+    const { tokenA, tokenB } = req.params;
+    
+    console.log(`\n🔍 Fetching shards for ${tokenA}-${tokenB} from blockchain...`);
+    
+    const tokenAData = tokens[tokenA];
+    const tokenBData = tokens[tokenB];
+    
+    if (!tokenAData || !tokenBData) {
+      return res.status(400).json({ 
+        error: 'Invalid token symbols',
+        availableTokens: Object.keys(tokens)
+      });
+    }
+    
+    // Get shards from factory contract
+    const factory = new ethers.Contract(
+      deployment.contracts.factory,
+      ['function getShardsForPair(address tokenA, address tokenB) external view returns (address[] memory)'],
+      provider
+    );
+    
+    console.log(`  ↳ Calling factory.getShardsForPair(${tokenAData.address}, ${tokenBData.address})...`);
+    const shardAddresses = await factory.getShardsForPair(tokenAData.address, tokenBData.address);
+    console.log(`  ↳ Found ${shardAddresses.length} shards`);
+    
+    if (shardAddresses.length === 0) {
+      return res.status(404).json({ 
+        error: 'No shards found for this pair',
+        tokenA,
+        tokenB
+      });
+    }
+    
+    // Get real-time data for each shard
+    const shardsWithData = await Promise.all(shardAddresses.map(async (shardAddr) => {
+      const poolData = await getPoolData(shardAddr);
+      const liquidityUSD = parseFloat(poolData.reserveA) * tokens[poolData.tokenA].price + 
+                           parseFloat(poolData.reserveB) * tokens[poolData.tokenB].price;
+      
+      return {
+        address: shardAddr,
+        tokenA: poolData.tokenA,
+        tokenB: poolData.tokenB,
+        reserveA: poolData.reserveA,
+        reserveB: poolData.reserveB,
+        liquidityUSD: Math.round(liquidityUSD)
+      };
+    }));
+    
+    // Sort by liquidity (smallest first - c-smaller-better)
+    shardsWithData.sort((a, b) => a.liquidityUSD - b.liquidityUSD);
+    
+    console.log(`  ✅ Fetched ${shardsWithData.length} shards with real-time data`);
+    
+    res.json({
+      tokenA,
+      tokenB,
+      shards: shardsWithData,
+      totalShards: shardsWithData.length,
+      totalLiquidityUSD: shardsWithData.reduce((sum, s) => sum + s.liquidityUSD, 0)
+    });
+  } catch (error) {
+    console.error('  ❌ Error fetching shards:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /quote - Get quote for a swap
 app.post('/quote', async (req, res) => {
   try {
@@ -482,6 +552,7 @@ initialize().then(() => {
     console.log(`   GET  /tokens - List all tokens`);
     console.log(`   GET  /pools - List all pools`);
     console.log(`   GET  /pools/:tokenA/:tokenB - Get pools for pair`);
+    console.log(`   GET  /shards/:tokenA/:tokenB - Get all shards for pair (real-time)`);
     console.log(`   POST /quote - Get swap quote`);
     console.log(`   POST /quote-multi - Get multi-hop quote`);
     console.log(`   GET  /balance/:address/:token - Get token balance`);
