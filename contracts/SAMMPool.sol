@@ -204,10 +204,11 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
         require(amountOut < outputReserve, "SAMMPool: insufficient liquidity");
 
         // Validate c-threshold for SAMM properties (using normalized values)
+        // OA/RB <= c ensures we don't drain too much from the output reserve
         require(
             SAMMFees.validateCThreshold(
                 _normalize(amountOut, outputDecimals),
-                _normalize(inputReserve, inputDecimals),
+                _normalize(outputReserve, outputDecimals),
                 c
             ),
             "SAMMPool: exceeds c-threshold"
@@ -587,13 +588,17 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
             outputReserveNorm
         );
 
-        // Total input = base amount + fees (in normalized space)
-        uint256 totalAmountInNorm = sourceAmountSwappedNorm + tradeFeeNorm + ownerFeeNorm;
+        // Convert owner fee from output token space to input token space
+        // ownerFeeInInputNorm = ownerFeeNorm * (inputReserve / outputReserve)
+        uint256 ownerFeeInInputNorm = (ownerFeeNorm * inputReserveNorm) / outputReserveNorm;
+
+        // Total input = base amount + fees (ALL in input token space now)
+        uint256 totalAmountInNorm = sourceAmountSwappedNorm + tradeFeeNorm + ownerFeeInInputNorm;
 
         // Denormalize back to token's native decimals
         uint256 totalAmountIn = _denormalize(totalAmountInNorm, inputDecimals);
         uint256 tradeFee = _denormalize(tradeFeeNorm, inputDecimals);
-        uint256 ownerFee = _denormalize(ownerFeeNorm, inputDecimals);
+        uint256 ownerFee = _denormalize(ownerFeeInInputNorm, inputDecimals);
 
         return SwapResult({
             amountIn: totalAmountIn,

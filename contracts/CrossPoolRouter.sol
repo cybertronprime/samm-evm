@@ -617,29 +617,29 @@ contract CrossPoolRouter is ICrossPoolRouter, Ownable, ReentrancyGuard, Pausable
      * @notice Validate c-threshold using cached shard data
      * @param cached Cached shard data
      * @param amountOut Desired output amount
-     * @return valid True if OA/RA <= c
+     * @return valid True if OA/RB <= c (output amount / output reserve)
      * @dev Uses cached decimals and reserves to avoid external calls
      * 
      * Requirements covered:
-     * - 3.1: Validate that OA/RA ≤ c for the selected shard
+     * - 3.1: Validate that OA/RB ≤ c for the selected shard
      * - 9.1: Use cached data to avoid redundant external calls
      */
     function _validateCThresholdCached(
         CachedShardData memory cached,
         uint256 amountOut
     ) internal pure returns (bool) {
-        if (cached.reserveIn == 0) {
+        if (cached.reserveOut == 0) {
             return false;
         }
 
         // Normalize amounts to 18 decimals using cached decimals
         uint256 normalizedAmountOut = _normalize(amountOut, cached.outputDecimals);
-        uint256 normalizedInputReserve = _normalize(cached.reserveIn, cached.inputDecimals);
+        uint256 normalizedOutputReserve = _normalize(cached.reserveOut, cached.outputDecimals);
 
-        // Validate OA/RA <= c
-        uint256 oaRaRatio = (normalizedAmountOut * SCALE_FACTOR) / normalizedInputReserve;
+        // Validate OA/RB <= c (output amount / output reserve)
+        uint256 oaRbRatio = (normalizedAmountOut * SCALE_FACTOR) / normalizedOutputReserve;
         
-        return oaRaRatio <= cached.cThreshold;
+        return oaRbRatio <= cached.cThreshold;
     }
 
     /**
@@ -692,9 +692,10 @@ contract CrossPoolRouter is ICrossPoolRouter, Ownable, ReentrancyGuard, Pausable
             
             bool isTokenAInput = poolTokenA == tokenIn;
             uint256 inputReserve = isTokenAInput ? reserveA : reserveB;
+            uint256 outputReserve = isTokenAInput ? reserveB : reserveA;
             
             // Validate c-threshold for this shard (Requirement 3.1, 3.3, 3.4)
-            if (!_validateCThreshold(pool, tokenIn, tokenOut, amountOut, inputReserve)) {
+            if (!_validateCThreshold(pool, tokenOut, amountOut, outputReserve)) {
                 continue;
             }
 
@@ -728,26 +729,24 @@ contract CrossPoolRouter is ICrossPoolRouter, Ownable, ReentrancyGuard, Pausable
     /**
      * @notice Validate that a swap satisfies the c-threshold constraint
      * @param pool The SAMM pool to validate against
-     * @param tokenIn Address of the input token
      * @param tokenOut Address of the output token
      * @param amountOut Desired output amount
-     * @param inputReserve Current input reserve of the pool
-     * @return valid True if OA/RA <= c (maintains SAMM properties)
+     * @param outputReserve Current output reserve of the pool
+     * @return valid True if OA/RB <= c (maintains SAMM properties)
      * @dev Normalizes amounts to 18 decimals for consistent comparison
      * 
      * Requirements covered:
-     * - 3.1: Validate that OA/RA ≤ c for the selected shard
+     * - 3.1: Validate that OA/RB ≤ c for the selected shard
      * - 3.3: Use the c parameter from each individual SAMM_Pool's configuration
      * - 3.4: Normalize amounts to 18 decimals for consistent comparison
      */
     function _validateCThreshold(
         ISAMMPool pool,
-        address tokenIn,
         address tokenOut,
         uint256 amountOut,
-        uint256 inputReserve
+        uint256 outputReserve
     ) internal view returns (bool) {
-        if (inputReserve == 0) {
+        if (outputReserve == 0) {
             return false;
         }
 
@@ -755,19 +754,18 @@ contract CrossPoolRouter is ICrossPoolRouter, Ownable, ReentrancyGuard, Pausable
         (,,, uint256 cThreshold) = pool.getSAMMParams();
 
         // Get token decimals for normalization
-        uint8 inputDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 outputDecimals = IERC20Metadata(tokenOut).decimals();
 
         // Normalize amounts to 18 decimals (Requirement 3.4)
         uint256 normalizedAmountOut = _normalize(amountOut, outputDecimals);
-        uint256 normalizedInputReserve = _normalize(inputReserve, inputDecimals);
+        uint256 normalizedOutputReserve = _normalize(outputReserve, outputDecimals);
 
-        // Validate OA/RA <= c (Requirement 3.1)
-        // Calculate ratio: (amountOut * SCALE_FACTOR) / inputReserve
+        // Validate OA/RB <= c (Requirement 3.1)
+        // Calculate ratio: (amountOut * SCALE_FACTOR) / outputReserve
         // Compare with cThreshold (which is already scaled by 1e6)
-        uint256 oaRaRatio = (normalizedAmountOut * SCALE_FACTOR) / normalizedInputReserve;
+        uint256 oaRbRatio = (normalizedAmountOut * SCALE_FACTOR) / normalizedOutputReserve;
         
-        return oaRaRatio <= cThreshold;
+        return oaRbRatio <= cThreshold;
     }
 
     /**

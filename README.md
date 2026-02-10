@@ -51,37 +51,45 @@ This is the opposite of traditional AMMs where everyone competes in one large po
 
 ## Deployed Contracts (Rise Testnet)
 
-**Network:** Rise Testnet (Chain ID: 11155931)
+**Network:** Rise Testnet  
+**RPC:** https://testnet.riselabs.xyz/http
 
 ### Core Contracts
 
 | Contract | Address |
 |----------|---------|
-| SAMMPoolFactory | `0xA74a8271C02237083c53eEE4153C07252F3925a3` |
-| CrossPoolRouter | `0x8a4ED210afE6Ed5B374CFEcBA2A5aD283FAB2fDa` |
-| TokenFaucet | `0x983A8fe1408bBba8a1EF02641E5ECD05b9a4BA1c` |
+| SAMMPoolFactory | `0x1114cF606d700bB8490C9D399500e35a31FaE27A` |
+| CrossPoolRouter | `0x622c2D2719197A047f29BCBaaaEBBDbD54b45a11` |
 
 ### Tokens
 
-| Token | Address | Decimals |
-|-------|---------|----------|
-| WBTC | `0xD08FB4eB0E146aA02a6590221E7d74f4fc1Ce6a3` | 8 |
-| WETH | `0x489A4BD9a9698e9B0755D1741DD254C90afbA594` | 18 |
-| USDC | `0x3FfDe07200eE114f0b173505735563bd93D7814f` | 6 |
-| USDT | `0x23dd84CBc68474BA537d76e11D29239a2CB9754F` | 6 |
-| DAI | `0xfF9F562e690c86818a84242b38E23820c3caE20c` | 18 |
-| LINK | `0x2C171917A571812FAa3cFd945467f99f700BCBdB` | 18 |
-| UNI | `0xf3D5C03C1437fb927d183Fe1FfCB8325b1cc1598` | 18 |
-| AAVE | `0xad4bA4E0Ca3090946eEC92b4FB570503Fab890f9` | 18 |
+| Token | Address | Decimals | Price |
+|-------|---------|----------|-------|
+| WBTC | `0xEf6c9F206Ad4333Ca049C874ae6956f849e71479` | 8 | $100,000 |
+| WETH | `0x0ec0b10b40832cD9805481F132f966B156d70Cc7` | 18 | $3,500 |
+| USDC | `0xDA4aABea512d4030863652dbB21907B6eC97ad23` | 6 | $1 |
+| USDT | `0x89D668205724fbFBaAe1BDF32F0aA046f6bdD7Cd` | 6 | $1 |
+| DAI | `0x9DcC3d09865292A2D5c39e08EEa583dd29390522` | 18 | $1 |
+| LINK | `0xD4Afa6b83888aABbe74b288b4241F39Ad8A8e0bA` | 18 | $15 |
+| UNI | `0xEebe649Cef7ed5b1fD4BE3222bA94f316eBdbE6c` | 18 | $8 |
+| AAVE | `0x92EfA27dBb61069d4f65a656E1e9781509982ba7` | 18 | $180 |
 
 ### Liquidity Pools
 
-33 shards deployed across 12 token pairs with **$13.875M total TVL**:
+**33 shards** across **12 token pairs** with **$13.88M total TVL**:
 
 - **Major pairs:** WETH-USDC, WBTC-USDC, WETH-WBTC (3 shards each)
 - **Stablecoin pairs:** USDC-USDT, USDC-DAI, USDT-DAI (3 shards each)
 - **DeFi pairs:** LINK-USDC, UNI-USDC, AAVE-USDC (3 shards each)
 - **Cross pairs:** WETH-LINK, WETH-UNI, WETH-AAVE (2 shards each)
+
+### Recent Fixes
+
+✅ **WBTC-USDC Pricing Bug Fixed** (Feb 2025)
+- Fixed owner fee calculation in `SAMMPool._calculateSwapSAMM()`
+- Fixed trade fee formula in `SAMMFees.calculateFeeSAMM()`
+- All 33 pools tested and verified working in both directions
+- See `FINAL_DIAGNOSIS.md` for technical details
 
 ## Getting Started
 
@@ -129,31 +137,11 @@ npx hardhat test test/CrossPoolRouter.integration.test.js
 # Deploy full production setup (tokens, factory, router, pools)
 npx hardhat run scripts/deploy-production-risechain.js --network risechain
 
-# Deploy faucet only
-npx hardhat run scripts/deploy-faucet-risechain.js --network risechain
+# Test all pools (33 shards, both directions)
+npx hardhat run scripts/test-wbtc-usdc-actual-swaps.js --network risechain
 ```
 
 ## Usage
-
-### Get Test Tokens
-
-Call `requestTokens()` on the Faucet contract to receive:
-- 1 WBTC (~$100,000)
-- 10 WETH (~$35,000)
-- 10,000 USDC
-- 10,000 USDT
-- 10,000 DAI
-- 500 LINK (~$7,500)
-- 1,000 UNI (~$8,000)
-- 50 AAVE (~$9,000)
-
-```solidity
-// Get tokens for yourself
-faucet.requestTokens();
-
-// Get tokens for any address
-faucet.requestTokensFor(recipientAddress);
-```
 
 ### Execute a Swap
 
@@ -165,11 +153,11 @@ IERC20(tokenIn).approve(routerAddress, amount);
 router.swapExactOutput({
     hops: [{
         tokenIn: USDC_ADDRESS,
-        tokenOut: DAI_ADDRESS,
-        amountOut: 100e18  // Get exactly 100 DAI
+        tokenOut: WBTC_ADDRESS,
+        amountOut: 1000000  // 0.01 WBTC (8 decimals)
     }],
-    maxAmountIn: 105e6,    // Pay at most 105 USDC
-    deadline: block.timestamp + 3600,
+    maxAmountIn: 1050000000,  // Max 1050 USDC (6 decimals)
+    deadline: block.timestamp + 600,
     recipient: msg.sender
 });
 ```
@@ -177,14 +165,14 @@ router.swapExactOutput({
 ### Multi-Hop Swap
 
 ```solidity
-// Swap LINK → USDC → DAI in one transaction
+// Swap USDC → WETH → WBTC in one transaction
 router.swapExactOutput({
     hops: [
-        { tokenIn: LINK, tokenOut: USDC, amountOut: 50e6 },
-        { tokenIn: USDC, tokenOut: DAI, amountOut: 45e18 }
+        { tokenIn: USDC, tokenOut: WETH, amountOut: 1e18 },      // Get 1 WETH
+        { tokenIn: WETH, tokenOut: WBTC, amountOut: 1000000 }    // Get 0.01 WBTC
     ],
-    maxAmountIn: 10e18,  // Max 10 LINK
-    deadline: block.timestamp + 3600,
+    maxAmountIn: 1100000000,  // Max 1100 USDC
+    deadline: block.timestamp + 600,
     recipient: msg.sender
 });
 ```
@@ -192,17 +180,27 @@ router.swapExactOutput({
 ### Get a Quote
 
 ```solidity
+// Get quote from router
 QuoteResult memory quote = router.quoteSwap([
     SwapHop({
         tokenIn: USDC,
-        tokenOut: DAI,
-        amountOut: 100e18
+        tokenOut: WBTC,
+        amountOut: 1000000  // 0.01 WBTC
     })
 ]);
 
-// quote.expectedAmountIn - how much USDC you'll need
+// quote.expectedAmountIn - how much USDC you'll need (~1016 USDC)
 // quote.selectedShards[0] - which shard will be used
-// quote.hopFees[0] - fee for this hop
+// quote.hopFees[0] - fee for this hop (~12.5 USDC)
+// quote.priceImpacts[0] - price impact (0.02%)
+```
+
+Or use the REST API:
+
+```bash
+curl -X POST http://localhost:3000/quote \
+  -H "Content-Type: application/json" \
+  -d '{"tokenIn":"USDC","tokenOut":"WBTC","amountOut":"0.01"}'
 ```
 
 ## SAMM Parameters
@@ -226,6 +224,60 @@ Where:
 - `RA` = Input token reserve
 - `RB` = Output token reserve  
 - `OA` = Output amount requested
+
+## REST API
+
+A minimalist single-file REST API server provides real-time DEX data:
+
+```bash
+npm run api
+```
+
+Server runs on `http://localhost:3000`
+
+### Quick Examples
+
+```bash
+# Get quote for swap
+curl -X POST http://localhost:3000/quote \
+  -H "Content-Type: application/json" \
+  -d '{"tokenIn":"USDC","tokenOut":"WBTC","amountOut":"0.01"}'
+
+# Get current price
+curl http://localhost:3000/price/USDC/WBTC
+
+# Get pool info
+curl http://localhost:3000/pools/WBTC/USDC
+
+# Get DEX stats
+curl http://localhost:3000/stats
+```
+
+### Available Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/tokens` | GET | List all tokens |
+| `/stats` | GET | DEX statistics (TVL, pool count) |
+| `/quote` | POST | Single-hop swap quote |
+| `/quote-multi` | POST | Multi-hop swap quote |
+| `/price/:tokenA/:tokenB` | GET | Current price (bypasses c-threshold) |
+| `/pools` | GET | All pools with real-time reserves |
+| `/pools/:tokenA/:tokenB` | GET | Pools for specific pair |
+| `/balance/:address/:token` | GET | Token balance |
+| `/balances/:address` | GET | All token balances |
+
+See `API.md` for full documentation.
+
+### Features
+
+- ✅ Real-time data from RiseChain blockchain
+- ✅ 10-second caching for pool data
+- ✅ Single-hop and multi-hop quotes
+- ✅ Price discovery without c-threshold limits
+- ✅ Live TVL calculation ($13.88M)
+- ✅ CORS enabled for frontend integration
 
 ## Project Structure
 

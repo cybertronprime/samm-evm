@@ -2,53 +2,53 @@
   "network": "Rise Testnet",
   "chainId": 11155931,
   "deployer": "0x004566C322f5F1CBC0594928556441f8D38EA589",
-  "timestamp": "2025-12-27T14:49:37.109Z",
+  "timestamp": "2026-02-10T17:25:39.965Z",
   "contracts": {
     "tokens": {
       "WBTC": {
-        "address": "0xD08FB4eB0E146aA02a6590221E7d74f4fc1Ce6a3",
+        "address": "0xEf6c9F206Ad4333Ca049C874ae6956f849e71479",
         "name": "Wrapped Bitcoin",
         "decimals": 8,
         "price": 100000
       },
       "WETH": {
-        "address": "0x489A4BD9a9698e9B0755D1741DD254C90afbA594",
+        "address": "0x0ec0b10b40832cD9805481F132f966B156d70Cc7",
         "name": "Wrapped Ether",
         "decimals": 18,
         "price": 3500
       },
       "USDC": {
-        "address": "0x3FfDe07200eE114f0b173505735563bd93D7814f",
+        "address": "0xDA4aABea512d4030863652dbB21907B6eC97ad23",
         "name": "USD Coin",
         "decimals": 6,
         "price": 1
       },
       "USDT": {
-        "address": "0x23dd84CBc68474BA537d76e11D29239a2CB9754F",
+        "address": "0x89D668205724fbFBaAe1BDF32F0aA046f6bdD7Cd",
         "name": "Tether USD",
         "decimals": 6,
         "price": 1
       },
       "DAI": {
-        "address": "0xfF9F562e690c86818a84242b38E23820c3caE20c",
+        "address": "0x9DcC3d09865292A2D5c39e08EEa583dd29390522",
         "name": "Dai Stablecoin",
         "decimals": 18,
         "price": 1
       },
       "LINK": {
-        "address": "0x2C171917A571812FAa3cFd945467f99f700BCBdB",
+        "address": "0xD4Afa6b83888aABbe74b288b4241F39Ad8A8e0bA",
         "name": "Chainlink",
         "decimals": 18,
         "price": 15
       },
       "UNI": {
-        "address": "0xf3D5C03C1437fb927d183Fe1FfCB8325b1cc1598",
+        "address": "0xEebe649Cef7ed5b1fD4BE3222bA94f316eBdbE6c",
         "name": "Uniswap",
         "decimals": 18,
         "price": 8
       },
       "AAVE": {
-        "address": "0xad4bA4E0Ca3090946eEC92b4FB570503Fab890f9",
+        "address": "0x92EfA27dBb61069d4f65a656E1e9781509982ba7",
         "name": "Aave",
         "decimals": 18,
         "price": 180
@@ -57,21 +57,21 @@
     "shards": {
       "WETH-USDC": [
         {
-          "address": "0x91049a5a60d3982D7e3687423d55eeEA00f247C0",
+          "address": "0x9b14F2a0799c3DE87C30067335Fd6cA815Dbed94",
           "name": "WETH-USDC-Small",
           "liquidityUSD": 50000,
           "amountA": "7.142857142857143296",
           "amountB": "25000.0"
         },
         {
-          "address": "0x14f149584B8bB22703181fE411e415E9AD82eDE5",
+          "address": "0xD2fb6c93c43F79b09ba17a4F895212A32f5868Bf",
           "name": "WETH-USDC-Medium",
           "liquidityUSD": 250000,
           "amountA": "35.714285714285715456",
           "amountB": "125000.0"
         },
         {
-          "address": "0xfA5895112953cc8Aaa5687A2bC1E2C86f73E4067",
+          "address": "0xD715c4f5125a8D3712d1479D3C7Bc99f82b941CA",
           "name": "WETH-USDC-Large",
           "liquidityUSD": 1000000,
           "amountA": "142.857142857142861824",
@@ -80,21 +80,21 @@
       ],
       "WBTC-USDC": [
         {
-          "address": "0xa0F2dE459Ca54eDE4D2C55Cee6Ace0600579dfb0",
+          "address": "0x82C891CaF08ceD046853e82DE600e954820FE798",
           "name": "WBTC-USDC-Small",
           "liquidityUSD": 100000,
           "amountA": "0.5",
           "amountB": "50000.0"
         },
         {
-          "address": "0x33b840Bf3C7c508d4Fee13046bef942EC4Fd005A",
+          "address": "0x7377C79551D632A02F2D4263832dae707206a735",
           "name": "WBTC-USDC-Medium",
           "liquidityUSD": 500000,
           "amountA": "2.5",
           "amountB": "250000.0"
         },
         {
-          "address": "0xfb3B81e477809CcE7FF781574285B229632beD06",
+          "address": "0xA5E37387Bdff99da83C5a5F477baF0e17e8A6Ffc",
           "name": "WBTC-USDC-Large",
           "liquidityUSD": 2000000,
           "amountA": "10.0",
@@ -103,21 +103,21 @@
       ],
       "WETH-WBTC": [
         {
-          "address": "0x800726630B3A9AE3BC3a63Bd316E1f4EE01f5DF5",
+          "address": "0x96e2B716a602cA652B4b476E8b6C0Fc0de4b3d8D",
           "name": "WETH-WBTC-Small",
           "liquidityUSD": 100000,
           "amountA": "14.285714285714286592",
           "amountB": "0.5"
         },
         {
-          "address": "0xA6c740d1cA8d151F97AF0F2B4819061deAd25256",
+          "address": "0x0e45Ed7c251F196757D0c6eA35C7bE9125b21C75",
           "name": "WETH-WBTC-Medium",
           "liquidityUSD": 500000,
           "amountA": "71.428571428571430912",
           "amountB": "2.5"
         },
         {
-          "address": "0xa5ADe5E8fc92ECc44D85311084E2710B9f097F38",
+          "address": "0xB27f8F33D7EB11f4d987D2140e54F3BB508a7E96",
           "name": "WETH-WBTC-Large",
           "liquidityUSD": 1500000,
           "amountA": "214.285714285714276352",
@@ -126,21 +126,21 @@
       ],
       "USDC-USDT": [
         {
-          "address": "0x2a3715D0cF344Ad62Ed38F6959697785368930FB",
+          "address": "0xdf21cEeDE5846823691482Ba75CBfC2070BA5E38",
           "name": "USDC-USDT-Small",
           "liquidityUSD": 100000,
           "amountA": "50000.0",
           "amountB": "50000.0"
         },
         {
-          "address": "0x12Ec85bB68C933150EcED2cA43BceE3d211d6D7E",
+          "address": "0x30144ed279E4d436Bc5eB6397c9182B4e3b9fd65",
           "name": "USDC-USDT-Medium",
           "liquidityUSD": 500000,
           "amountA": "250000.0",
           "amountB": "250000.0"
         },
         {
-          "address": "0xFDbB7cB7D6bc5e0B769e4eE9a7Dcc80b41d1A02c",
+          "address": "0x1e5aF9F23C70b6197A7fb3CF4fa3E04723137FA8",
           "name": "USDC-USDT-Large",
           "liquidityUSD": 2000000,
           "amountA": "1000000.0",
@@ -149,21 +149,21 @@
       ],
       "USDC-DAI": [
         {
-          "address": "0xBaABFf92C86199eb424d05fF25B6Ef774462Cd0F",
+          "address": "0x6291aC35BcE864d37797Ab6c1ae9d0e8BCEc62dD",
           "name": "USDC-DAI-Small",
           "liquidityUSD": 100000,
           "amountA": "50000.0",
           "amountB": "49999.999999999995805696"
         },
         {
-          "address": "0xb04380c1a2Ec14b7CBcA73ee3162218CDd4bda39",
+          "address": "0x9ed9125e0Ed6f744948E69627ef482A81D8c2Ba8",
           "name": "USDC-DAI-Medium",
           "liquidityUSD": 500000,
           "amountA": "250000.0",
           "amountB": "249999.999999999995805696"
         },
         {
-          "address": "0xAED4FDbD25f51C5a6bfa6E200Eb40a38cdA75f76",
+          "address": "0x4887F87ab9bfdC113c28Edbbd844656fFE0aC7ED",
           "name": "USDC-DAI-Large",
           "liquidityUSD": 1500000,
           "amountA": "750000.0",
@@ -172,21 +172,21 @@
       ],
       "USDT-DAI": [
         {
-          "address": "0xd5ec4C94E53C82e1742276278E647811d415787d",
+          "address": "0x89fCF1e6E6fAD786580CeFf1eEE9326539E2a6F9",
           "name": "USDT-DAI-Small",
           "liquidityUSD": 50000,
           "amountA": "25000.0",
           "amountB": "24999.999999999997902848"
         },
         {
-          "address": "0x926236b5BeF0bD36EfBc1F2FEAb491A8850c8367",
+          "address": "0x2BA561e95f8fB45095bCFf830aE97f2B294d15EE",
           "name": "USDT-DAI-Medium",
           "liquidityUSD": 250000,
           "amountA": "125000.0",
           "amountB": "124999.999999999997902848"
         },
         {
-          "address": "0x7Ad077276B374eFbFAA0D0b95EA3741e1De4F757",
+          "address": "0x08049Da26b4019E03e30018dBf1944D3CB955185",
           "name": "USDT-DAI-Large",
           "liquidityUSD": 1000000,
           "amountA": "500000.0",
@@ -195,21 +195,21 @@
       ],
       "LINK-USDC": [
         {
-          "address": "0x8679f9aEBA6AEFb349e1D9d89d46bc927a777803",
+          "address": "0x92947A1D2BDF08fB22874e73481b97928CA76CF3",
           "name": "LINK-USDC-Small",
           "liquidityUSD": 25000,
           "amountA": "833.333333333333377024",
           "amountB": "12500.0"
         },
         {
-          "address": "0xBBB9b8fb6C4fA57FAEc3d4a30ed4865a864fcC1c",
+          "address": "0x25935D9993726bCb2C49DBBd0651718DC9fFE20B",
           "name": "LINK-USDC-Medium",
           "liquidityUSD": 100000,
           "amountA": "3333.333333333333508096",
           "amountB": "50000.0"
         },
         {
-          "address": "0xef23e4F4DfaAf4933589a1E4e2ca94A8F048674c",
+          "address": "0xc76D77aEf2C9068E953d5D3E81C083Cddf51CcFb",
           "name": "LINK-USDC-Large",
           "liquidityUSD": 500000,
           "amountA": "16666.666666666668064768",
@@ -218,21 +218,21 @@
       ],
       "UNI-USDC": [
         {
-          "address": "0x531b10F78986df0B10c411da5848827431B2Cff3",
+          "address": "0xfb45335ff4F1C70B3421efAF424cF83b153631CF",
           "name": "UNI-USDC-Small",
           "liquidityUSD": 25000,
           "amountA": "1562.499999999999868928",
           "amountB": "12500.0"
         },
         {
-          "address": "0xF15cd9E886a332b06be3ae195d9E505c904d7646",
+          "address": "0xc65ABa8CCc2FDaf1c6CFcb8FFa77f4079fEF1692",
           "name": "UNI-USDC-Medium",
           "liquidityUSD": 100000,
           "amountA": "6249.999999999999475712",
           "amountB": "50000.0"
         },
         {
-          "address": "0xDbc66ed2928Fae4FA37cf895f576Daf5D4175558",
+          "address": "0xA7f8a35DC7F3f9a4Fd24C7C4f60a8EC3313Ab8dB",
           "name": "UNI-USDC-Large",
           "liquidityUSD": 400000,
           "amountA": "24999.999999999997902848",
@@ -241,21 +241,21 @@
       ],
       "AAVE-USDC": [
         {
-          "address": "0xBEf7eB62c500e4Bb5C51676442Ad7291BF12a6eF",
+          "address": "0xF212865EAb798582Fe868F2f9849f5bE83244643",
           "name": "AAVE-USDC-Small",
           "liquidityUSD": 25000,
           "amountA": "69.444444444444442624",
           "amountB": "12500.0"
         },
         {
-          "address": "0xA03c616AA65Aa0d6f7d290Af2677f9D4677DF29c",
+          "address": "0xccd91B5B3fEaF4b06367f68573eb4c431E9e263B",
           "name": "AAVE-USDC-Medium",
           "liquidityUSD": 100000,
           "amountA": "277.777777777777770496",
           "amountB": "50000.0"
         },
         {
-          "address": "0xfe717Cd57CcC42C0916a887D6f0f1858AB013943",
+          "address": "0xBc967DcE025C65E1A23CA21d7665c8B359459F7F",
           "name": "AAVE-USDC-Large",
           "liquidityUSD": 300000,
           "amountA": "833.333333333333377024",
@@ -264,14 +264,14 @@
       ],
       "WETH-LINK": [
         {
-          "address": "0x46C2D8547130c0B86025782eFB6092888a73527A",
+          "address": "0x513A8022548e55D9B13F59e2543253cB1c4C1f13",
           "name": "WETH-LINK-Small",
           "liquidityUSD": 20000,
           "amountA": "2.857142857142857216",
           "amountB": "666.666666666666622976"
         },
         {
-          "address": "0xBD53897D33320bB3bEe542b5b4f0069159F2d27F",
+          "address": "0xca81F39D6e8701C8E2171a56ee0C05c58735CDf1",
           "name": "WETH-LINK-Medium",
           "liquidityUSD": 80000,
           "amountA": "11.428571428571428864",
@@ -280,14 +280,14 @@
       ],
       "WETH-UNI": [
         {
-          "address": "0x2aCe0b1CaEB9d2AdC83d0836740B7B5ef4eecb60",
+          "address": "0x9c84a006685208b0496FD9d3cf0aC448e35859a4",
           "name": "WETH-UNI-Small",
           "liquidityUSD": 20000,
           "amountA": "2.857142857142857216",
           "amountB": "1250.0"
         },
         {
-          "address": "0x911C2Af36B28Dc08A361F3506F14F05bef1850E3",
+          "address": "0x427e8318a002527FBD9e0094693d6a4A74582603",
           "name": "WETH-UNI-Medium",
           "liquidityUSD": 80000,
           "amountA": "11.428571428571428864",
@@ -296,14 +296,14 @@
       ],
       "WETH-AAVE": [
         {
-          "address": "0x6653DEb032a711FD64F26E2041ff3920CCBB473c",
+          "address": "0x73Dff4eAF595DeC21748EF932A7397786bac1B5A",
           "name": "WETH-AAVE-Small",
           "liquidityUSD": 20000,
           "amountA": "2.857142857142857216",
           "amountB": "55.555555555555557376"
         },
         {
-          "address": "0xCeF4fc15b4C25801EC81cE21bF46ef3dA56daD81",
+          "address": "0xcC4839aC25fc810f8F9b35111165d087655ee620",
           "name": "WETH-AAVE-Medium",
           "liquidityUSD": 80000,
           "amountA": "11.428571428571428864",
@@ -311,15 +311,15 @@
         }
       ]
     },
-    "factory": "0xA74a8271C02237083c53eEE4153C07252F3925a3",
-    "router": "0x8a4ED210afE6Ed5B374CFEcBA2A5aD283FAB2fDa"
+    "factory": "0x1114cF606d700bB8490C9D399500e35a31FaE27A",
+    "router": "0x622c2D2719197A047f29BCBaaaEBBDbD54b45a11"
   },
   "poolStats": {
     "totalShards": 33,
     "totalLiquidityUSD": 13875000
   },
   "testResults": {
-    "passed": 6,
+    "passed": 18,
     "failed": 0,
     "tests": [
       {
@@ -330,7 +330,7 @@
       {
         "name": "Router selects smallest valid shard",
         "passed": true,
-        "details": "Selected: 0xBaABFf92... (expected smallest: 0xBaABFf92...)"
+        "details": "Selected: 0x6291aC35... (expected smallest: 0x6291aC35...)"
       },
       {
         "name": "Single-hop swap (USDC→USDT)",
@@ -350,7 +350,67 @@
       {
         "name": "Quote accuracy within 0.1%",
         "passed": true,
-        "details": "Quoted: 101.641521 USDC, Actual: 101.641521 USDC"
+        "details": "Quoted: 101.649697 USDC, Actual: 101.649697 USDC"
+      },
+      {
+        "name": "WETH-USDC swap (volatile-stable)",
+        "passed": true,
+        "details": "Received: 1.0 WETH"
+      },
+      {
+        "name": "WBTC-USDC swap (volatile-stable)",
+        "passed": true,
+        "details": "Received: 0.1 WBTC"
+      },
+      {
+        "name": "WETH-WBTC swap (volatile-volatile)",
+        "passed": true,
+        "details": "Received: 0.05 WBTC"
+      },
+      {
+        "name": "LINK-USDC swap (DeFi-stable)",
+        "passed": true,
+        "details": "Received: 10.0 LINK"
+      },
+      {
+        "name": "UNI-USDC swap (DeFi-stable)",
+        "passed": true,
+        "details": "Received: 10.0 UNI"
+      },
+      {
+        "name": "AAVE-USDC swap (DeFi-stable)",
+        "passed": true,
+        "details": "Received: 1.0 AAVE"
+      },
+      {
+        "name": "WETH-LINK cross-pair swap",
+        "passed": true,
+        "details": "Received: 5.0 LINK"
+      },
+      {
+        "name": "WETH-UNI cross-pair swap",
+        "passed": true,
+        "details": "Received: 5.0 UNI"
+      },
+      {
+        "name": "WETH-AAVE cross-pair swap",
+        "passed": true,
+        "details": "Received: 0.5 AAVE"
+      },
+      {
+        "name": "Multi-hop cross-pool (USDC→USDT→DAI)",
+        "passed": true,
+        "details": "Hops: 2, Received: 100.0 DAI"
+      },
+      {
+        "name": "Reverse direction swap (DAI→USDC)",
+        "passed": true,
+        "details": "Received: 100.0 USDC"
+      },
+      {
+        "name": "Large swap (uses large shard)",
+        "passed": true,
+        "details": "Received: 5000.0 DAI"
       }
     ]
   }

@@ -21,6 +21,8 @@
     "clean": "hardhat clean && rm -rf cache artifacts",
     "backend": "node start-unified-backend.js",
     "backend:test": "node test-unified-backend.js",
+    "api": "node api-server.js",
+    "api:dev": "nodemon api-server.js",
     "service:dev": "cd services && npm run dev",
     "service:start": "cd services && npm start",
     "validate:setup": "node scripts/validate-multi-chain-setup.js",
@@ -36,7 +38,11 @@
     "deploy:multi:testnets": "node scripts/deploy-multi-chain.js all --continue-on-error",
     "test:e2e:sepolia": "node scripts/test-end-to-end-sepolia.js",
     "test:e2e:all": "npm run test:e2e:sepolia && echo 'Sepolia passed, ready for other testnets'",
-    "verify:setup": "node scripts/verify-setup.js"
+    "verify:setup": "node scripts/verify-setup.js",
+    "bench": "hardhat run scripts/bench.js --network risechain",
+    "bench:multipool": "hardhat run scripts/bench-multipool.js --network risechain",
+    "bench:parallel": "hardhat run scripts/bench-parallel.js --network risechain",
+    "bench:batched": "hardhat run scripts/bench-batched.js --network risechain"
   },
   "keywords": [
     "SAMM",
@@ -70,6 +76,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.0",
     "axios": "^1.13.2",
+    "cors": "^2.8.6",
     "dotenv": "^16.0.0",
     "express": "^5.1.0",
     "supertest": "^7.1.4"

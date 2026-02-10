@@ -42,12 +42,12 @@ contract SAMMFeesTest {
 
     function validateCThreshold(
         uint256 outputAmount,
-        uint256 inputReserve,
+        uint256 outputReserve,
         uint256 cThreshold
     ) external pure returns (bool) {
         return SAMMFees.validateCThreshold(
             outputAmount,
-            inputReserve,
+            outputReserve,
             cThreshold
         );
     }

@@ -66,8 +66,9 @@ library SAMMFees {
         }
         
         // Calculate final fee: (RB/RA) × OA × fee_rate
-        // fee = (outputReserve * outputAmount * finalFeeRate) / (inputReserve * SCALE_FACTOR)
-        uint256 fee = (outputReserve * outputAmount * finalFeeRate) / (inputReserve * SCALE_FACTOR);
+        // Paper formula: fee = (inputReserve/outputReserve) × outputAmount × feeRate
+        // This returns the fee in INPUT token units (normalized to 18 decimals)
+        uint256 fee = (inputReserve * outputAmount * finalFeeRate) / (outputReserve * SCALE_FACTOR);
         
         return fee;
     }
@@ -96,20 +97,23 @@ library SAMMFees {
 
     /**
      * @notice Validate c-threshold for SAMM properties
-     * @param outputAmount The output amount requested
-     * @param inputReserve The input token reserve
+     * @param outputAmount The output amount requested (OA)
+     * @param outputReserve The output token reserve (RB)
      * @param cThreshold The c-threshold parameter (scaled by 1e6)
-     * @return valid True if OA/RA <= c (maintains SAMM properties)
+     * @return valid True if OA/RB <= c (maintains SAMM properties)
+     * @dev The c-threshold limits how much can be drained from the output reserve.
+     *      This ensures the pool maintains sufficient liquidity after the swap.
      */
     function validateCThreshold(
         uint256 outputAmount,
-        uint256 inputReserve,
+        uint256 outputReserve,
         uint256 cThreshold
     ) internal pure returns (bool) {
-        if (inputReserve == 0) return false;
+        if (outputReserve == 0) return false;
         
-        uint256 oaRaRatio = (outputAmount * SCALE_FACTOR) / inputReserve;
-        return oaRaRatio <= cThreshold;
+        // OA/RB <= c means you can't take more than c% of the output reserve
+        uint256 oaRbRatio = (outputAmount * SCALE_FACTOR) / outputReserve;
+        return oaRbRatio <= cThreshold;
     }
 
     /**
