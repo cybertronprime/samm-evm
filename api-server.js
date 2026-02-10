@@ -282,82 +282,55 @@ app.get('/shards/:tokenA/:tokenB', async (req, res) => {
   }
 });
 
-// POST /quote - Get quote for a swap
+// POST /quote - Get quote for single or multi-hop swap
 app.post('/quote', async (req, res) => {
   try {
-    const { tokenIn, tokenOut, amountOut } = req.body;
+    // Support both formats:
+    // 1. Single-hop: { tokenIn, tokenOut, amountOut }
+    // 2. Multi-hop: { route: [token1, token2, token3], amountOut }
+    const { tokenIn, tokenOut, route, amountOut } = req.body;
     
-    console.log(`\n📊 Quote request: ${tokenIn} → ${tokenOut}, amount: ${amountOut}`);
-    
-    if (!tokenIn || !tokenOut || !amountOut) {
-      return res.status(400).json({ error: 'Missing required fields: tokenIn, tokenOut, amountOut' });
+    if (!amountOut) {
+      return res.status(400).json({ error: 'Missing required field: amountOut' });
     }
     
-    const tokenInData = tokens[tokenIn];
-    const tokenOutData = tokens[tokenOut];
+    let routeArray;
     
-    if (!tokenInData || !tokenOutData) {
-      console.log(`  ❌ Invalid token: ${tokenIn} or ${tokenOut}`);
-      return res.status(400).json({ error: 'Invalid token symbol' });
+    // Determine if single-hop or multi-hop
+    if (route && Array.isArray(route)) {
+      // Multi-hop format
+      if (route.length < 2) {
+        return res.status(400).json({ error: 'Route must have at least 2 tokens' });
+      }
+      routeArray = route;
+      console.log(`\n📊 Multi-hop quote: ${route.join(' → ')}, amount: ${amountOut}`);
+    } else if (tokenIn && tokenOut) {
+      // Single-hop format
+      routeArray = [tokenIn, tokenOut];
+      console.log(`\n📊 Single-hop quote: ${tokenIn} → ${tokenOut}, amount: ${amountOut}`);
+    } else {
+      return res.status(400).json({ 
+        error: 'Invalid request. Use either {tokenIn, tokenOut, amountOut} or {route: [token1, token2, ...], amountOut}' 
+      });
     }
     
-    const amountOutParsed = ethers.parseUnits(amountOut.toString(), tokenOutData.decimals);
-    console.log(`  ↳ Amount out parsed: ${amountOutParsed.toString()}`);
-    console.log(`  ↳ TokenIn: ${tokenInData.address}`);
-    console.log(`  ↳ TokenOut: ${tokenOutData.address}`);
-    
-    console.log(`  ↳ Calling router.quoteSwap()...`);
-    const quote = await router.quoteSwap([{
-      tokenIn: tokenInData.address,
-      tokenOut: tokenOutData.address,
-      amountOut: amountOutParsed
-    }]);
-    
-    console.log(`  ✅ Quote received`);
-    console.log(`  ↳ Expected amount in: ${quote.expectedAmountIn.toString()}`);
-    console.log(`  ↳ Selected shard: ${quote.selectedShards[0]}`);
-    
-    const expectedAmountIn = ethers.formatUnits(quote.expectedAmountIn, tokenInData.decimals);
-    const fee = ethers.formatUnits(quote.hopFees[0], tokenInData.decimals);
-    const priceImpact = Number(quote.priceImpacts[0]) / 10000; // basis points to percentage
-    
-    res.json({
-      tokenIn,
-      tokenOut,
-      amountOut,
-      expectedAmountIn,
-      fee,
-      priceImpact: `${priceImpact.toFixed(2)}%`,
-      selectedShard: quote.selectedShards[0],
-      route: [tokenIn, tokenOut]
-    });
-  } catch (error) {
-    console.error(`  ❌ Quote error: ${error.message}`);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// POST /quote-multi - Get quote for multi-hop swap
-app.post('/quote-multi', async (req, res) => {
-  try {
-    const { route, amountOut } = req.body;
-    
-    if (!route || !Array.isArray(route) || route.length < 2 || !amountOut) {
-      return res.status(400).json({ error: 'Invalid route or amountOut' });
-    }
-    
+    // Build hops array for router
     const hops = [];
-    for (let i = 0; i < route.length - 1; i++) {
-      const tokenInData = tokens[route[i]];
-      const tokenOutData = tokens[route[i + 1]];
+    for (let i = 0; i < routeArray.length - 1; i++) {
+      const tokenInData = tokens[routeArray[i]];
+      const tokenOutData = tokens[routeArray[i + 1]];
       
       if (!tokenInData || !tokenOutData) {
-        return res.status(400).json({ error: `Invalid token in route: ${route[i]} or ${route[i + 1]}` });
+        return res.status(400).json({ 
+          error: `Invalid token in route: ${routeArray[i]} or ${routeArray[i + 1]}`,
+          availableTokens: Object.keys(tokens)
+        });
       }
       
-      const amount = i === route.length - 2 
+      // Only the last hop has the final amountOut, others are calculated by router
+      const amount = i === routeArray.length - 2 
         ? ethers.parseUnits(amountOut.toString(), tokenOutData.decimals)
-        : 0n; // Router calculates intermediate amounts
+        : 0n;
       
       hops.push({
         tokenIn: tokenInData.address,
@@ -366,25 +339,65 @@ app.post('/quote-multi', async (req, res) => {
       });
     }
     
+    console.log(`  ↳ Calling router.quoteSwap() with ${hops.length} hop(s)...`);
     const quote = await router.quoteSwap(hops);
-    const firstTokenDecimals = tokens[route[0]].decimals;
     
+    const firstTokenDecimals = tokens[routeArray[0]].decimals;
     const expectedAmountIn = ethers.formatUnits(quote.expectedAmountIn, firstTokenDecimals);
+    
+    // Calculate total fees
     const totalFee = quote.hopFees.reduce((sum, fee, i) => {
-      const decimals = tokens[route[i]].decimals;
+      const decimals = tokens[routeArray[i]].decimals;
       return sum + parseFloat(ethers.formatUnits(fee, decimals));
     }, 0);
     
-    res.json({
-      route,
+    console.log(`  ✅ Quote received: ${expectedAmountIn} ${routeArray[0]} needed`);
+    
+    // Fetch detailed shard data for each selected shard
+    const shardsData = await Promise.all(quote.selectedShards.map(async (shardAddr, i) => {
+      const poolData = await getPoolData(shardAddr);
+      const liquidityUSD = parseFloat(poolData.reserveA) * tokens[poolData.tokenA].price + 
+                           parseFloat(poolData.reserveB) * tokens[poolData.tokenB].price;
+      
+      return {
+        address: shardAddr,
+        tokenIn: routeArray[i],
+        tokenOut: routeArray[i + 1],
+        tokenA: poolData.tokenA,
+        tokenB: poolData.tokenB,
+        reserveA: poolData.reserveA,
+        reserveB: poolData.reserveB,
+        liquidityUSD: Math.round(liquidityUSD),
+        fee: ethers.formatUnits(quote.hopFees[i], tokens[routeArray[i]].decimals),
+        priceImpact: `${(Number(quote.priceImpacts[i]) / 10000).toFixed(2)}%`
+      };
+    }));
+    
+    // Build response
+    const response = {
+      route: routeArray,
       amountOut,
       expectedAmountIn,
       totalFee: totalFee.toFixed(6),
-      hops: quote.selectedShards.length,
+      hops: hops.length,
       selectedShards: quote.selectedShards,
+      shardsData,
       priceImpacts: quote.priceImpacts.map(pi => `${(Number(pi) / 10000).toFixed(2)}%`)
-    });
+    };
+    
+    // Add single-hop specific fields for backward compatibility
+    if (routeArray.length === 2) {
+      response.tokenIn = routeArray[0];
+      response.tokenOut = routeArray[1];
+      response.fee = ethers.formatUnits(quote.hopFees[0], firstTokenDecimals);
+      response.priceImpact = response.priceImpacts[0];
+      response.selectedShard = quote.selectedShards[0];
+      response.shardData = shardsData[0];
+    }
+    
+    res.json(response);
   } catch (error) {
+    console.error(`  ❌ Quote error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
@@ -553,8 +566,7 @@ initialize().then(() => {
     console.log(`   GET  /pools - List all pools`);
     console.log(`   GET  /pools/:tokenA/:tokenB - Get pools for pair`);
     console.log(`   GET  /shards/:tokenA/:tokenB - Get all shards for pair (real-time)`);
-    console.log(`   POST /quote - Get swap quote`);
-    console.log(`   POST /quote-multi - Get multi-hop quote`);
+    console.log(`   POST /quote - Get swap quote (single or multi-hop)`);
     console.log(`   GET  /balance/:address/:token - Get token balance`);
     console.log(`   GET  /balances/:address - Get all balances`);
     console.log(`   GET  /stats - Get DEX statistics`);

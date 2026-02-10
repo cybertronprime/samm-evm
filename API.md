@@ -65,55 +65,71 @@ DEX statistics with real-time TVL
 ```
 
 ### POST /quote
-Get single-hop swap quote
+Get quote for single or multi-hop swap (unified endpoint)
 
-**Request:**
+**Single-hop request:**
 ```json
 {
   "tokenIn": "USDC",
-  "tokenOut": "WBTC",
-  "amountOut": "0.01"
+  "tokenOut": "DAI",
+  "amountOut": "100"
 }
 ```
 
-**Response:**
+**Multi-hop request:**
 ```json
 {
-  "tokenIn": "USDC",
-  "tokenOut": "WBTC",
-  "amountOut": "0.01",
-  "expectedAmountIn": "1016.775201",
-  "fee": "12.503194",
-  "priceImpact": "0.02%",
-  "selectedShard": "0x7377C79551D632A02F2D4263832dae707206a735",
-  "route": ["USDC", "WBTC"]
+  "route": ["USDC", "USDT", "DAI"],
+  "amountOut": "100"
 }
 ```
 
-### POST /quote-multi
-Get multi-hop swap quote
+**Response includes:**
+- `expectedAmountIn` - Total input needed
+- `totalFee` - Sum of all fees
+- `selectedShards` - Array of shard addresses used
+- `shardsData` - Detailed pool data for each hop (reserves, liquidity, fees)
+- `priceImpacts` - Price impact for each hop
 
-**Request:**
+**Single-hop response example:**
 ```json
 {
-  "route": ["USDC", "WETH", "WBTC"],
-  "amountOut": "0.01"
+  "route": ["USDC", "DAI"],
+  "expectedAmountIn": "102.093508",
+  "shardsData": [{
+    "address": "0x6291aC35BcE864d37797Ab6c1ae9d0e8BCEc62dD",
+    "reserveA": "49799.265208991137660259",
+    "reserveB": "50218.003678",
+    "liquidityUSD": 100017,
+    "fee": "1.049752",
+    "priceImpact": "0.01%"
+  }]
 }
 ```
 
-**Response:**
+**Multi-hop response example:**
 ```json
 {
-  "route": ["USDC", "WETH", "WBTC"],
-  "amountOut": "0.01",
-  "expectedAmountIn": "1037.999059",
-  "totalFee": "12.713362",
+  "route": ["USDC", "USDT", "DAI"],
+  "expectedAmountIn": "104.391973",
+  "totalFee": "1.909680",
   "hops": 2,
-  "selectedShards": [
-    "0xD2fb6c93c43F79b09ba17a4F895212A32f5868Bf",
-    "0x0e45Ed7c251F196757D0c6eA35C7bE9125b21C75"
-  ],
-  "priceImpacts": ["0.02%", "0.02%"]
+  "shardsData": [
+    {
+      "address": "0xdf21cEeDE5846823691482Ba75CBfC2070BA5E38",
+      "tokenIn": "USDC",
+      "tokenOut": "USDT",
+      "liquidityUSD": 100023,
+      "fee": "1.068438"
+    },
+    {
+      "address": "0x89fCF1e6E6fAD786580CeFf1eEE9326539E2a6F9",
+      "tokenIn": "USDT",
+      "tokenOut": "DAI",
+      "liquidityUSD": 50008,
+      "fee": "0.841242"
+    }
+  ]
 }
 ```
 
