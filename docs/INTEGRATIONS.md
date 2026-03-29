@@ -1,12 +1,12 @@
-# SAMM × ETHGlobal Cannes 2026
+# SAMM Partner Integrations
 
-> Dynamically sharded AMM meets the best partner integrations
+> Dynamically sharded AMM with multi-protocol DeFi integrations
 
 ## Project Overview
 
 **SAMM (Stableswap AMM)** is a research-backed, dynamically sharded AMM DEX.
-At ETHGlobal Cannes 2026, we integrated SAMM with three premier partner
-ecosystems for a unified DeFi experience.
+This project integrates SAMM with three leading DeFi ecosystems — Uniswap,
+Chainlink, and Arc/Circle — for a unified cross-protocol experience.
 
 ---
 
@@ -14,12 +14,12 @@ ecosystems for a unified DeFi experience.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        ETHGlobal Cannes 2026                    │
+│                    SAMM Partner Integrations                     │
 │                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
 │  │  Uniswap     │  │  Chainlink   │  │  Arc / Circle         │  │
-│  │  Foundation  │  │              │  │  (Nanopayments)       │  │
-│  │  ($10K)      │  │  ($5K)       │  │  ($15K)               │  │
+│  │  Foundation  │  │  VRF + Feeds │  │  (Nanopayments)       │  │
+│  │  Aggregator  │  │  + CRE       │  │                       │  │
 │  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘  │
 │         │                 │                      │              │
 │  ┌──────▼───────────────────────────────────────▼───────────┐  │
@@ -37,12 +37,11 @@ ecosystems for a unified DeFi experience.
 
 ---
 
-## Track Breakdown
+## Integration Breakdown
 
-### 🦄 Track 1: Uniswap Foundation — Best Uniswap API Integration
+### 🦄 Uniswap Foundation — Best-Price Aggregation
 
-**Chain:** Ethereum Sepolia  
-**Prize:** $10,000
+**Chain:** Ethereum Sepolia
 
 | Component | Path |
 |-----------|------|
@@ -77,10 +76,9 @@ npm run agent:uniswap
 
 ---
 
-### ⬡ Track 2: Chainlink — CRE Workflow + Price Feeds + VRF
+### ⬡ Chainlink — CRE Workflow + Price Feeds + VRF
 
-**Chain:** Ethereum Sepolia  
-**Prize:** $5,000
+**Chain:** Ethereum Sepolia
 
 | Component | Path |
 |-----------|------|
@@ -119,10 +117,9 @@ npm run deploy:sepolia:chainlink
 
 ---
 
-### ⭕ Track 3: Arc/Circle — Best Agentic Economy with Nanopayments
+### ⭕ Arc/Circle — Autonomous Nanopayment Arbitrage
 
-**Chain:** Arc Testnet  
-**Prize:** $15,000
+**Chain:** Arc Testnet
 
 | Component | Path |
 |-----------|------|
@@ -203,7 +200,7 @@ npx hardhat test test/integrations/NanopaymentArbitrageur.test.js
 
 ## Environment Variables Reference
 
-See `.env.example` for the full list. Key additions for hackathon:
+See `.env.example` for the full list. Key integration settings:
 
 ```bash
 # Uniswap

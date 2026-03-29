@@ -13,8 +13,7 @@ import "./interfaces/IUniswapV3.sol";
  * @title UniswapSAMMAggregator
  * @notice On-chain meta-aggregator that routes swaps through whichever
  *         of SAMM's CrossPoolRouter or Uniswap V3 offers the better price.
- * @dev Deployed on Ethereum Sepolia for the Uniswap Foundation prize track.
- *      Uniswap V3 SwapRouter (Sepolia): 0xE592427A0AEce92De3Edee1F18E0157C05861564
+ * @dev Supports Ethereum Sepolia with Uniswap V3 SwapRouter at 0xE592427A0AEce92De3Edee1F18E0157C05861564
  */
 contract UniswapSAMMAggregator is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;

@@ -1,6 +1,6 @@
 /**
  * deploy-uniswap-aggregator.js
- * Deploys UniswapSAMMAggregator on Sepolia for the Uniswap Foundation prize track.
+ * Deploys UniswapSAMMAggregator on Sepolia.
  *
  * Usage:
  *   npx hardhat run scripts/deploy-uniswap-aggregator.js --network sepolia

@@ -7,7 +7,7 @@ import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.so
 /**
  * @title ChainlinkPriceValidator
  * @notice Validates SAMM swap prices against Chainlink oracle prices.
- * @dev Deployed on Ethereum Sepolia for the Chainlink prize track.
+ * @dev Deployed on Ethereum Sepolia with Chainlink Price Feed oracles.
  *
  *  Sepolia feed addresses:
  *   ETH/USD : 0x694AA1769357215DE4FAC081bf1f309aDC325306
