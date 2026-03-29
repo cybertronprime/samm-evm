@@ -9,10 +9,14 @@
     "test": "hardhat test",
     "test:unit": "hardhat test test/unit/**/*.test.js",
     "test:integration": "hardhat test test/integration/**/*.test.js",
+    "test:integrations": "hardhat test test/integrations/**/*.test.js",
     "test:offchain": "mocha test/offchain/**/*.test.js",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "validate:sepolia": "hardhat run scripts/validate-deployment-ready.js --network sepolia",
     "deploy:sepolia": "hardhat run scripts/deploy-sepolia.js --network sepolia",
+    "deploy:sepolia:uniswap": "hardhat run scripts/deploy-uniswap-aggregator.js --network sepolia",
+    "deploy:sepolia:chainlink": "hardhat run scripts/deploy-chainlink-integrations.js --network sepolia",
+    "deploy:arc": "hardhat run scripts/deploy-arc-nanopayments.js --network arc",
     "deploy:monad": "hardhat run scripts/deploy-monad.js --network monad",
     "deploy:risechain": "hardhat run scripts/deploy-risechain-testnet.js --network risechain",
     "deploy:risechain:testnet": "node scripts/deploy-risechain-testnet.js",
@@ -26,6 +30,8 @@
     "api:dev": "nodemon api-server.js",
     "service:dev": "cd services && npm run dev",
     "service:start": "cd services && npm start",
+    "agent:uniswap": "node services/uniswap-agent.js",
+    "agent:arc": "node services/arc-nano-agent.js",
     "validate:setup": "node scripts/validate-multi-chain-setup.js",
     "validate:setup:sepolia": "node scripts/validate-multi-chain-setup.js sepolia",
     "validate:setup:monad": "node scripts/validate-multi-chain-setup.js monad",
@@ -75,11 +81,15 @@
     "typechain": "^8.3.0"
   },
   "dependencies": {
+    "@chainlink/contracts": "^1.5.0",
     "@openzeppelin/contracts": "^5.0.0",
+    "@uniswap/v3-core": "^1.0.1",
+    "@uniswap/v3-periphery": "^1.4.4",
     "axios": "^1.13.2",
     "cors": "^2.8.6",
     "dotenv": "^16.0.0",
     "express": "^5.1.0",
+    "openai": "^4.104.0",
     "supertest": "^7.1.4"
   }
 }
