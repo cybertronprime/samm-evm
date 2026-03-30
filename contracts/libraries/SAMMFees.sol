@@ -13,16 +13,20 @@ pragma solidity ^0.8.20;
  * - RA = input token reserve
  * - RB = output token reserve  
  * - OA = output amount requested
- * - β1 = -1.05 (slope parameter)
- * - rmin = 0.001 (minimum fee rate)
- * - rmax = 0.012 (maximum fee rate)
+ * - β1 = -0.25 (slope parameter, gentler for larger c-threshold)
+ * - rmin = 0.0001 (0.01% minimum fee rate)
+ * - rmax = 0.0025 (0.25% maximum fee rate)
+ * - c = 0.0096 (0.96% c-threshold, allows meaningful swaps per shard)
+ *
+ * Total max fee = rmax + owner(0.05%) = 0.30% — Uniswap-competitive
+ * Constraint: (rmax-rmin)/|β1| = 2400/250000 = 0.0096 ≥ c ✅
  */
 library SAMMFees {
-    // SAMM parameters from research paper (scaled by 1e6 for precision)
-    int256 public constant BETA1_SCALED = -1050000; // -1.05 * 1e6
-    uint256 public constant RMIN_SCALED = 1000;     // 0.001 * 1e6 
-    uint256 public constant RMAX_SCALED = 12000;    // 0.012 * 1e6
-    uint256 public constant C_SCALED = 10400;       // 0.0104 * 1e6
+    // Competitive SAMM parameters (scaled by 1e6 for precision)
+    int256 public constant BETA1_SCALED = -250000;  // -0.25 * 1e6 (gentler slope for larger c)
+    uint256 public constant RMIN_SCALED = 100;      // 0.0001 * 1e6  (0.01%)
+    uint256 public constant RMAX_SCALED = 2500;     // 0.0025 * 1e6  (0.25%)
+    uint256 public constant C_SCALED = 9600;        // 0.0096 * 1e6  (0.96%)
     uint256 public constant SCALE_FACTOR = 1e6;
 
     /**

@@ -1,118 +1,173 @@
-# SAMM - Sharded Automated Market Maker
+# SAMM — Sharded Automated Market Maker
 
-A novel decentralized exchange protocol implementing **sharded liquidity pools** with dynamic fee optimization based on the SAMM research paper.
+A novel DEX protocol implementing **sharded liquidity pools** with dynamic fee optimisation, TPS-driven auto-scaling, and an integrated arbitrage rebalancer. Live on **RiseChain Testnet**.
 
-## What is SAMM?
+---
 
-SAMM (Sharded Automated Market Maker) is an innovative AMM design that solves the liquidity fragmentation problem by:
+## What Is SAMM?
 
-1. **Sharding liquidity** - Instead of one large pool per token pair, SAMM creates multiple smaller "shards" with different liquidity levels
-2. **Dynamic fee optimization** - Fees adjust based on trade size relative to pool reserves using the formula: `fee = max(rmin, β1 × (OA/RA) + rmax)`
-3. **Optimal shard selection** - The router automatically selects the smallest shard that can handle your trade, giving you the best rates
+Traditional AMMs force every trade — regardless of size — through one enormous pool.  
+SAMM inverts this by **sharding** each token pair into multiple pools of increasing size:
 
-### The "c-smaller-better" Property
+| Tier | TVL Target | Best For |
+|------|-----------|----------|
+| Small | $250 K | Trades < $1 K |
+| Medium | $1 M | Trades $1 K – $5 K |
+| Large | $5 M | Trades $5 K+ |
+| Dynamic | auto-scaled | Spill-over during high TPS |
 
-The key insight from the SAMM research paper: **smaller pools give better rates for smaller trades**.
+The **CrossPoolRouter** automatically selects the **smallest shard** that can handle your trade.  
+Smaller shards → lower fees → better rates (the **c-smaller-better** property from the SAMM litepaper).
 
-When you swap on SAMM:
-- The router queries all available shards for your token pair
-- It selects the **smallest shard** where your trade satisfies `OA/RA ≤ c` (the c-threshold)
-- Smaller shards = lower fees = better rates for appropriately-sized trades
+### Fee Formula
 
-This is the opposite of traditional AMMs where everyone competes in one large pool!
+$$
+\text{fee} = \max\!\bigl(r_{\min},\; \beta_1 \cdot \tfrac{O_A}{R_A} + r_{\max}\bigr)
+$$
+
+| Parameter | Value | Meaning |
+|-----------|-------|---------|
+| β₁ | −250 000 | Steep fee curve slope |
+| rₘᵢₙ | 100 (0.01%) | Floor fee rate |
+| rₘₐₓ | 2 500 (0.25%) | Ceiling fee rate |
+| c | 9 600 (0.96%) | Shard eligibility threshold |
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     CrossPoolRouter                          │
-│  • Multi-hop swap execution                                  │
-│  • Automatic shard selection (smallest valid shard)          │
-│  • Slippage protection & deadline validation                 │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    SAMMPoolFactory                           │
-│  • Creates and tracks pool shards                            │
-│  • Manages shard lifecycle (create, initialize, deactivate)  │
-│  • Provides shard discovery for routing                      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-            ┌─────────────────┼─────────────────┐
-            ▼                 ▼                 ▼
-     ┌───────────┐     ┌───────────┐     ┌───────────┐
-     │ SAMMPool  │     │ SAMMPool  │     │ SAMMPool  │
-     │ (Small)   │     │ (Medium)  │     │ (Large)   │
-     │ $50K TVL  │     │ $250K TVL │     │ $1M TVL   │
-     └───────────┘     └───────────┘     └───────────┘
-         WETH-USDC Shards (example)
+                          ┌──────────────────────┐
+                          │  api-server.js (REST) │  ← port 3000
+                          └──────┬───────────────┘
+                    ┌────────────┼────────────────┐
+                    ▼            ▼                ▼
+          arbitrage-bot.js  dynamic-shard-     tx-queue.js
+          (rebalancer)      manager.js         (nonce serialiser)
+                    │        (TPS scaler)          │
+                    └────────────┼────────────────┘
+                                 ▼
+                    ┌────────────────────────┐
+                    │   RiseChain Testnet     │
+                    │   (Solidity contracts)  │
+                    └────────────────────────┘
+                                 │
+          ┌──────────────────────┼──────────────────────┐
+          ▼                      ▼                      ▼
+   CrossPoolRouter        SAMMPoolFactory        DynamicShardOrchestrator
+          │                      │
+          ▼                      ▼
+    SAMMPool shards        SAMMCurve / SAMMFees
+    (20 live pools)        (math libraries)
 ```
 
-## Deployed Contracts (Rise Testnet)
+### On-Chain Contracts
 
-**Network:** Rise Testnet  
-**RPC:** https://testnet.riselabs.xyz/http
+| Contract | Purpose |
+|----------|---------|
+| **SAMMPool** | Individual liquidity shard with SAMM curve |
+| **SAMMPoolFactory** | Creates & indexes shards per pair |
+| **CrossPoolRouter** | Multi-hop swaps with auto shard selection |
+| **DynamicShardOrchestrator** | On-chain shard creation (called by backend) |
+| **SAMMCurve / SAMMFees** | Pure-math libraries for pricing |
+| **TokenFaucet** | Testnet token dispenser |
+
+### Off-Chain Backend
+
+| Module | Purpose |
+|--------|---------|
+| **api-server.js** | Express REST API — auto-discovers deployment, starts subsystems |
+| **arbitrage-bot.js** | Monitors every shard for oracle deviation, rebalances with 50% gap closure |
+| **dynamic-shard-manager.js** | Reads TPS, applies litepaper §6 formula: n = min(⌈TPS/50⌉, 10) |
+| **tx-queue.js** | Serialises all wallet transactions to prevent nonce collisions |
+
+---
+
+## Security Model
+
+> **The backend wallet sends transactions.** The arb bot and shard manager use a single `PRIVATE_KEY` to sign rebalancing swaps and create new shards. This is by design.
+
+| Component | Sends Txs? | Why |
+|-----------|-----------|-----|
+| Arb Bot | ✅ | Rebalances shard reserves toward oracle price |
+| Shard Manager | ✅ | Creates new shards when TPS exceeds capacity |
+| `POST /swap` | ✅ | Executes user-requested swaps via the backend wallet |
+| `GET /quote` | ❌ | Read-only — calls `calculateSwapSAMM()` view function |
+| All GET endpoints | ❌ | Read-only on-chain queries |
+
+### What's Protected
+
+- **`.env` is gitignored** — the private key never enters the repo.
+- **Railway deployment** injects `PRIVATE_KEY` and `RISECHAIN_RPC_URL` as environment variables via the dashboard.
+- The `POST /swap`, `POST /arbitrage/*`, and `POST /sharding/*` endpoints require the wallet to be initialised (i.e. `PRIVATE_KEY` must be set in the environment). Without it, the server runs in **read-only mode** — all GET and quote endpoints still work.
+
+### Public Repo Considerations
+
+Since this repo is public:
+
+1. **Never commit `.env`** — it is already in `.gitignore`.
+2. The deployment data in `deployment-data/` contains only **contract addresses** (public on-chain data).
+3. Anyone can call the API, but the `POST /swap` endpoint spends **the server's own tokens** (testnet faucet tokens with zero real-world value).
+4. The arb bot and shard manager run server-side only — the server wallet holds only testnet tokens minted by the faucet.
+
+---
+
+## Live Deployment (RiseChain Testnet)
+
+**Chain ID:** 11155931  
+**RPC:** `https://testnet.riselabs.xyz/http`
 
 ### Core Contracts
 
 | Contract | Address |
 |----------|---------|
-| SAMMPoolFactory | `0x1114cF606d700bB8490C9D399500e35a31FaE27A` |
-| CrossPoolRouter | `0x622c2D2719197A047f29BCBaaaEBBDbD54b45a11` |
+| SAMMPoolFactory | `0xc4c6ceABeBBfA1Bf9D219fE80F5b95982664fb94` |
+| CrossPoolRouter | `0x6A45347a8DbC629000F725c544D695209b0c3d00` |
+| DynamicShardOrchestrator | `0x93174f86F57A97827680c279e07704AbE2a0b0c0` |
+| TokenFaucet | `0x42a930BF9259cE3D9e76bb1d8C61b52daf68dBE4` |
 
 ### Tokens
 
-| Token | Address | Decimals | Price |
-|-------|---------|----------|-------|
-| WBTC | `0xEf6c9F206Ad4333Ca049C874ae6956f849e71479` | 8 | $100,000 |
-| WETH | `0x0ec0b10b40832cD9805481F132f966B156d70Cc7` | 18 | $3,500 |
-| USDC | `0xDA4aABea512d4030863652dbB21907B6eC97ad23` | 6 | $1 |
-| USDT | `0x89D668205724fbFBaAe1BDF32F0aA046f6bdD7Cd` | 6 | $1 |
-| DAI | `0x9DcC3d09865292A2D5c39e08EEa583dd29390522` | 18 | $1 |
-| LINK | `0xD4Afa6b83888aABbe74b288b4241F39Ad8A8e0bA` | 18 | $15 |
-| UNI | `0xEebe649Cef7ed5b1fD4BE3222bA94f316eBdbE6c` | 18 | $8 |
-| AAVE | `0x92EfA27dBb61069d4f65a656E1e9781509982ba7` | 18 | $180 |
+| Token | Address | Decimals |
+|-------|---------|----------|
+| WETH | `0x0234367975aCbcBe49867dD36bf37C7d05C2E743` | 18 |
+| USDC | `0x1B40c25A7cDF5b11c67dc956d6b63EEaE1C349B0` | 6 |
+| USDT | `0xa95558713D7E6D3F41bC70E867323A84404586f9` | 6 |
+| WBTC | `0xD35648Ad048e450aFd22f3421cE6A5EFFC40DC4D` | 8 |
+| DAI | `0x51A046A489da585eB5875845FdC7323c0f1F0606` | 18 |
 
-### Liquidity Pools
+### Liquidity Shards — 20 pools, ~$32.8M TVL
 
-**33 shards** across **12 token pairs** with **$13.88M total TVL**:
+| Pair | Shards | Combined TVL |
+|------|--------|-------------|
+| WETH-USDC | Small, Medium, Large, Dynamic | ~$6.60M |
+| USDC-USDT | Small, Medium, Large, Dynamic | ~$6.50M |
+| WETH-USDT | Small, Medium, Large, Dynamic | ~$6.60M |
+| WBTC-USDC | Small, Medium, Large, Dynamic | ~$6.56M |
+| USDC-DAI  | Small, Medium, Large, Dynamic | ~$6.50M |
 
-- **Major pairs:** WETH-USDC, WBTC-USDC, WETH-WBTC (3 shards each)
-- **Stablecoin pairs:** USDC-USDT, USDC-DAI, USDT-DAI (3 shards each)
-- **DeFi pairs:** LINK-USDC, UNI-USDC, AAVE-USDC (3 shards each)
-- **Cross pairs:** WETH-LINK, WETH-UNI, WETH-AAVE (2 shards each)
-
-### Recent Fixes
-
-✅ **WBTC-USDC Pricing Bug Fixed** (Feb 2025)
-- Fixed owner fee calculation in `SAMMPool._calculateSwapSAMM()`
-- Fixed trade fee formula in `SAMMFees.calculateFeeSAMM()`
-- All 33 pools tested and verified working in both directions
-- See `FINAL_DIAGNOSIS.md` for technical details
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js v18+
-- npm or yarn
+- Node.js ≥ 18
+- npm
 
-### Installation
+### Install
 
 ```bash
 git clone <repo-url>
-cd samm-v2
+cd samm-evm
 npm install
 ```
 
-### Configuration
+### Configure
 
-Create a `.env` file:
-
-```env
-PRIVATE_KEY=your_private_key
-RISECHAIN_RPC_URL=https://testnet.riselabs.xyz
+```bash
+cp .env.example .env
+# Edit .env — set PRIVATE_KEY and RISECHAIN_RPC_URL
 ```
 
 ### Compile Contracts
@@ -124,202 +179,175 @@ npx hardhat compile
 ### Run Tests
 
 ```bash
-# Run all tests
-npx hardhat test
-
-# Run specific test file
-npx hardhat test test/CrossPoolRouter.integration.test.js
+npx hardhat test                     # all Hardhat tests
+npx hardhat test test/unit/          # unit tests only
+npm run test:swap-matrix             # on-chain swap matrix (requires RiseChain)
 ```
 
-### Deploy
+### Deploy (fresh)
 
 ```bash
-# Deploy full production setup (tokens, factory, router, pools)
-npx hardhat run scripts/deploy-production-risechain.js --network risechain
-
-# Test all pools (33 shards, both directions)
-npx hardhat run scripts/test-wbtc-usdc-actual-swaps.js --network risechain
+npm run deploy:risechain             # full production deploy
+npm run deploy:faucet                # token faucet
+npm run deploy:router                # router only
 ```
 
-## Usage
-
-### Execute a Swap
-
-```solidity
-// Approve router to spend your tokens
-IERC20(tokenIn).approve(routerAddress, amount);
-
-// Execute swap
-router.swapExactOutput({
-    hops: [{
-        tokenIn: USDC_ADDRESS,
-        tokenOut: WBTC_ADDRESS,
-        amountOut: 1000000  // 0.01 WBTC (8 decimals)
-    }],
-    maxAmountIn: 1050000000,  // Max 1050 USDC (6 decimals)
-    deadline: block.timestamp + 600,
-    recipient: msg.sender
-});
-```
-
-### Multi-Hop Swap
-
-```solidity
-// Swap USDC → WETH → WBTC in one transaction
-router.swapExactOutput({
-    hops: [
-        { tokenIn: USDC, tokenOut: WETH, amountOut: 1e18 },      // Get 1 WETH
-        { tokenIn: WETH, tokenOut: WBTC, amountOut: 1000000 }    // Get 0.01 WBTC
-    ],
-    maxAmountIn: 1100000000,  // Max 1100 USDC
-    deadline: block.timestamp + 600,
-    recipient: msg.sender
-});
-```
-
-### Get a Quote
-
-```solidity
-// Get quote from router
-QuoteResult memory quote = router.quoteSwap([
-    SwapHop({
-        tokenIn: USDC,
-        tokenOut: WBTC,
-        amountOut: 1000000  // 0.01 WBTC
-    })
-]);
-
-// quote.expectedAmountIn - how much USDC you'll need (~1016 USDC)
-// quote.selectedShards[0] - which shard will be used
-// quote.hopFees[0] - fee for this hop (~12.5 USDC)
-// quote.priceImpacts[0] - price impact (0.02%)
-```
-
-Or use the REST API:
+### Start the API Server
 
 ```bash
+npm start
+```
+
+The server auto-discovers the latest `production-risechain-*.json` file in `deployment-data/`, starts the arb bot and shard manager, and listens on the configured port.
+
+### Verify All APIs
+
+```bash
+npm run verify:apis
+```
+
+Runs 42 read-only tests against every endpoint (no swaps executed).
+
+---
+
+## REST API Reference
+
+Base URL: `http://localhost:3000`
+
+### Read-Only Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Server health + deployment info |
+| `GET` | `/tokens` | All tokens with CoinGecko prices |
+| `GET` | `/pools` | All pairs with shards and TVL |
+| `GET` | `/pools/:tokenA/:tokenB` | Shards for a specific pair |
+| `GET` | `/shards/:tokenA/:tokenB` | Shard details direct from chain |
+| `GET` | `/quote/:tokenIn/:tokenOut/:amount` | Single-hop quote (fee, slippage, shard) |
+| `POST` | `/quote` | Multi-hop quote (body: `{ route, amountOut }`) |
+| `GET` | `/price/:tokenA/:tokenB` | Spot price + oracle deviation |
+| `GET` | `/balance/:address/:token` | Token balance |
+| `GET` | `/balances/:address` | All token balances for address |
+| `GET` | `/stats` | DEX-wide stats (TVL, pair count, shard names) |
+| `GET` | `/arbitrage/status` | Arb bot running status |
+| `GET` | `/arbitrage/history` | Recent arb swap log |
+| `GET` | `/sharding/status` | Shard manager status + TPS readings |
+
+### Write Endpoints (require `PRIVATE_KEY`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/swap` | Execute swap (server wallet signs tx) |
+| `POST` | `/arbitrage/start` | Start arb bot |
+| `POST` | `/arbitrage/stop` | Stop arb bot |
+| `POST` | `/sharding/start` | Start shard manager |
+| `POST` | `/sharding/stop` | Stop shard manager |
+| `POST` | `/sharding/check` | Trigger immediate shard check |
+
+### Example Queries
+
+```bash
+# Quick quote — buy 100 USDC with WETH
+curl http://localhost:3000/quote/WETH/USDC/100
+
+# Multi-hop quote — WETH → USDC → USDT
 curl -X POST http://localhost:3000/quote \
   -H "Content-Type: application/json" \
-  -d '{"tokenIn":"USDC","tokenOut":"WBTC","amountOut":"0.01"}'
-```
+  -d '{"route":["WETH","USDC","USDT"],"amountOut":"500"}'
 
-## SAMM Parameters
+# Spot price
+curl http://localhost:3000/price/WETH/USDC
 
-The protocol uses these parameters from the SAMM research paper:
-
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| β1 | -1.05 | Fee curve slope (negative = fees decrease with size) |
-| rmin | 0.001 (0.1%) | Minimum fee rate |
-| rmax | 0.012 (1.2%) | Maximum fee rate |
-| c | 0.0104 | c-threshold for shard selection |
-
-### Fee Formula
-
-```
-tradeFee = (RB/RA) × OA × max(rmin, β1 × (OA/RA) + rmax)
-```
-
-Where:
-- `RA` = Input token reserve
-- `RB` = Output token reserve  
-- `OA` = Output amount requested
-
-## REST API
-
-A minimalist single-file REST API server provides real-time DEX data:
-
-```bash
-npm run api
-```
-
-Server runs on `http://localhost:3000`
-
-### Quick Examples
-
-```bash
-# Get quote for swap
-curl -X POST http://localhost:3000/quote \
-  -H "Content-Type: application/json" \
-  -d '{"tokenIn":"USDC","tokenOut":"WBTC","amountOut":"0.01"}'
-
-# Get current price
-curl http://localhost:3000/price/USDC/WBTC
-
-# Get pool info
-curl http://localhost:3000/pools/WBTC/USDC
-
-# Get DEX stats
+# DEX stats
 curl http://localhost:3000/stats
 ```
 
-### Available Endpoints
+---
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/tokens` | GET | List all tokens |
-| `/stats` | GET | DEX statistics (TVL, pool count) |
-| `/quote` | POST | Single-hop swap quote |
-| `/quote-multi` | POST | Multi-hop swap quote |
-| `/price/:tokenA/:tokenB` | GET | Current price (bypasses c-threshold) |
-| `/pools` | GET | All pools with real-time reserves |
-| `/pools/:tokenA/:tokenB` | GET | Pools for specific pair |
-| `/balance/:address/:token` | GET | Token balance |
-| `/balances/:address` | GET | All token balances |
+## Deployment to Railway
 
-See `API.md` for full documentation.
+The repo includes `railway.json` and `nixpacks.toml` for one-click Railway deployment.
 
-### Features
+Set these environment variables in Railway's dashboard:
 
-- ✅ Real-time data from RiseChain blockchain
-- ✅ 10-second caching for pool data
-- ✅ Single-hop and multi-hop quotes
-- ✅ Price discovery without c-threshold limits
-- ✅ Live TVL calculation ($13.88M)
-- ✅ CORS enabled for frontend integration
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PRIVATE_KEY` | Yes | Wallet private key (no `0x` prefix) |
+| `RISECHAIN_RPC_URL` | Yes | RiseChain RPC endpoint |
+| `PORT` | No | Defaults to 3000 |
+| `ENABLE_ARBITRAGE` | No | `true` to auto-start arb bot |
+| `ENABLE_DYNAMIC_SHARDING` | No | `true` to auto-start shard manager |
+
+---
 
 ## Project Structure
 
 ```
-├── contracts/
-│   ├── CrossPoolRouter.sol      # Multi-hop swap router
-│   ├── SAMMPool.sol             # Liquidity pool with SAMM curve
-│   ├── SAMMPoolFactory.sol      # Factory for creating shards
-│   ├── TokenFaucet.sol          # Test token faucet
-│   ├── interfaces/              # Contract interfaces
-│   ├── libraries/               # SAMM math (SAMMCurve, SAMMFees)
-│   └── mocks/                   # Mock tokens for testing
+samm-evm/
+├── contracts/                             # Solidity source
+│   ├── SAMMPool.sol                       #   Liquidity pool shard
+│   ├── SAMMPoolFactory.sol                #   Factory for creating shards
+│   ├── CrossPoolRouter.sol                #   Multi-hop swap router
+│   ├── DynamicShardOrchestrator.sol       #   On-chain shard creator
+│   ├── TokenFaucet.sol                    #   Testnet faucet
+│   ├── interfaces/                        #   ISAMMPool, ISAMMPoolFactory, ICrossPoolRouter
+│   └── libraries/                         #   SAMMCurve.sol, SAMMFees.sol
+├── api-server.js                          # REST API server (Express)
+├── arbitrage-bot.js                       # Oracle-deviation rebalancer
+├── dynamic-shard-manager.js               # TPS-driven shard scaler
+├── tx-queue.js                            # Nonce-safe tx serialiser
+├── hardhat.config.js                      # Hardhat configuration
+├── package.json                           # Dependencies & npm scripts
+├── railway.json                           # Railway deployment config
+├── nixpacks.toml                          # Nixpacks build config
+├── .env.example                           # Environment variable template
+├── config/                                # Chain configs (chains.json)
+├── deployment-data/                       # Contract addresses (auto-generated)
 ├── scripts/
-│   ├── deploy-production-risechain.js    # Full deployment
-│   ├── deploy-faucet-risechain.js        # Faucet deployment
+│   ├── deploy-production-risechain.js     # Full production deploy
+│   ├── deploy-production-risechain-v2.js  # V2 deploy variant
 │   ├── deploy-crosspool-router-risechain.js
-│   └── comprehensive-e2e-test-risechain.js
-├── test/
-│   ├── CrossPoolRouter.integration.test.js
-│   ├── *.property.test.js       # Property-based tests
-│   └── unit/                    # Unit tests
-├── services/                    # Backend API services
-├── config/                      # Chain configurations
-└── deployment-data/             # Deployment artifacts
+│   ├── deploy-faucet-risechain.js
+│   ├── validate-risechain-swap-matrix.js  # On-chain swap matrix test
+│   ├── comprehensive-e2e-test-risechain.js
+│   ├── comprehensive-swap-analysis.js     # Detailed swap analysis
+│   ├── verify-all-apis.js                 # 42-test API verification
+│   ├── bench-batched.js                   # Batched RPC TPS benchmark
+│   ├── bench-sustained-tps.js             # Sustained TPS benchmark
+│   ├── tps-load-test.js                   # TPS load generator
+│   └── initialize-empty-pools.js          # Pool init utility
+├── test/                                  # Hardhat / Mocha tests
+│   ├── unit/                              #   Unit tests
+│   ├── offchain/                          #   Off-chain math verification
+│   ├── *.property.test.js                 #   Property-based tests (fast-check)
+│   └── *.test.js                          #   Integration tests
+├── test-results/                          # Benchmark outputs (gitignored)
+└── Research.md                            # SAMM litepaper & research notes
 ```
 
-## Key Features
+---
 
-- **Atomic multi-hop swaps** - Execute complex routes in a single transaction
-- **Automatic shard selection** - Router finds the optimal shard for your trade
-- **Slippage protection** - Set maximum input amounts to protect against price movement
-- **Deadline validation** - Transactions revert if not executed in time
-- **Pausable** - Admin can pause swaps in emergencies
-- **Token rescue** - Admin can recover stuck tokens
+## Key Concepts
 
-## Security
+### c-Smaller-Better Property
 
-- ReentrancyGuard on all state-changing functions
-- SafeERC20 for all token transfers
-- Pausable for emergency stops
-- Owner-only admin functions
-- Comprehensive test coverage including property-based tests
+The SAMM litepaper's core insight: for a given trade size, the **smallest eligible shard always gives the best rate**. The router enforces this — it iterates shards from smallest to largest and uses the first one where the trade-to-reserve ratio stays within the c-threshold.
+
+### TPS-Driven Dynamic Sharding (Litepaper §6)
+
+When on-chain TPS exceeds a per-shard capacity, the shard manager creates additional shards:
+
+```
+n = min(⌈TPS / PER_SHARD_TPS⌉, MAX_SHARDS_PER_PAIR)
+```
+
+Default: 50 TPS per shard, max 10 shards per pair.
+
+### Arbitrage Bot
+
+Monitors every shard's spot price against CoinGecko oracles. When deviation exceeds 0.3%, it executes a corrective swap sized at 50% of the gap. A 3-cycle cooldown per shard prevents oscillation.
+
+---
 
 ## License
 

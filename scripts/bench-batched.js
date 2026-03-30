@@ -98,6 +98,11 @@ async function main() {
     tx.gasLimit = 250000;
     tx.chainId = 11155931;
     
+    // Get current gas price and add buffer
+    const feeData = await provider.getFeeData();
+    tx.maxFeePerGas = feeData.maxFeePerGas * 120n / 100n; // 20% buffer
+    tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * 120n / 100n;
+    
     const signedTx = await signer.signTransaction(tx);
     signedTxs.push(signedTx);
     

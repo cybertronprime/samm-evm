@@ -30,16 +30,50 @@ const path = require("path");
 const GAS_LIMIT = 12000000;
 const CONFIRMATIONS = 1;
 
-// Token configurations with realistic decimals and initial supplies
+// CoinGecko IDs for market price lookup
+const COINGECKO_IDS = {
+  WBTC: 'bitcoin', WETH: 'ethereum', USDC: 'usd-coin',
+  USDT: 'tether', DAI: 'dai', LINK: 'chainlink',
+  UNI: 'uniswap', AAVE: 'aave'
+};
+
+// Fallback prices (used if CoinGecko is unavailable)
+const FALLBACK_PRICES = {
+  WBTC: 87000, WETH: 2050, USDC: 1, USDT: 1, DAI: 1, LINK: 14, UNI: 6.5, AAVE: 180
+};
+
+// Fetch live market prices from CoinGecko
+async function fetchMarketPrices() {
+  try {
+    const ids = Object.values(COINGECKO_IDS).join(',');
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
+      { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(10000) }
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const prices = {};
+    for (const [symbol, geckoId] of Object.entries(COINGECKO_IDS)) {
+      prices[symbol] = data[geckoId]?.usd || FALLBACK_PRICES[symbol];
+    }
+    console.log(`   ✅ Live market prices fetched from CoinGecko`);
+    return prices;
+  } catch (e) {
+    console.log(`   ⚠️  CoinGecko unavailable (${e.message}), using fallback prices`);
+    return { ...FALLBACK_PRICES };
+  }
+}
+
+// Token configurations with realistic decimals
 const TOKENS = {
-  WBTC: { name: "Wrapped Bitcoin", symbol: "WBTC", decimals: 8, price: 100000 },
-  WETH: { name: "Wrapped Ether", symbol: "WETH", decimals: 18, price: 3500 },
-  USDC: { name: "USD Coin", symbol: "USDC", decimals: 6, price: 1 },
-  USDT: { name: "Tether USD", symbol: "USDT", decimals: 6, price: 1 },
-  DAI: { name: "Dai Stablecoin", symbol: "DAI", decimals: 18, price: 1 },
-  LINK: { name: "Chainlink", symbol: "LINK", decimals: 18, price: 15 },
-  UNI: { name: "Uniswap", symbol: "UNI", decimals: 18, price: 8 },
-  AAVE: { name: "Aave", symbol: "AAVE", decimals: 18, price: 180 }
+  WBTC: { name: "Wrapped Bitcoin", symbol: "WBTC", decimals: 8 },
+  WETH: { name: "Wrapped Ether", symbol: "WETH", decimals: 18 },
+  USDC: { name: "USD Coin", symbol: "USDC", decimals: 6 },
+  USDT: { name: "Tether USD", symbol: "USDT", decimals: 6 },
+  DAI: { name: "Dai Stablecoin", symbol: "DAI", decimals: 18 },
+  LINK: { name: "Chainlink", symbol: "LINK", decimals: 18 },
+  UNI: { name: "Uniswap", symbol: "UNI", decimals: 18 },
+  AAVE: { name: "Aave", symbol: "AAVE", decimals: 18 }
 };
 
 // Pool configurations with realistic liquidity levels (in USD value)
@@ -108,12 +142,12 @@ const POOL_CONFIGS = [
   ]}
 ];
 
-// SAMM Parameters from research paper
+// SAMM Parameters - competitive with Uniswap (≤0.30% total fees)
 const SAMM_PARAMS = {
-  beta1: -1050000n,  // -1.05 * 1e6
-  rmin: 1000n,       // 0.001 * 1e6
-  rmax: 12000n,      // 0.012 * 1e6
-  c: 10400n          // 0.0104 * 1e6
+  beta1: -250000n,   // -0.25 * 1e6 (gentler slope for larger c-threshold)
+  rmin: 100n,        // 0.0001 * 1e6  (0.01% min fee rate)
+  rmax: 2500n,       // 0.0025 * 1e6  (0.25% max fee rate)
+  c: 9600n           // 0.0096 * 1e6  (0.96% c-threshold)
 };
 
 const FEE_PARAMS = {
@@ -142,6 +176,17 @@ async function main() {
     poolStats: {}
   };
 
+  // ============ Fetch Market Prices ============
+  console.log("=".repeat(70));
+  console.log("💱 Fetching Market Prices");
+  console.log("=".repeat(70));
+  const marketPrices = await fetchMarketPrices();
+  for (const [symbol, config] of Object.entries(TOKENS)) {
+    config.price = marketPrices[symbol];
+    console.log(`   ${symbol}: $${config.price}`);
+  }
+  deploymentData.marketPrices = { ...marketPrices, fetchedAt: new Date().toISOString() };
+
   // ============ Deploy Factory ============
   console.log("=".repeat(70));
   console.log("📦 Deploying Core Contracts");
@@ -167,7 +212,7 @@ async function main() {
   console.log("🪙 Deploying Tokens");
   console.log("=".repeat(70));
 
-  const MockERC20 = await ethers.getContractFactory("MockERC20");
+  const MockERC20 = await ethers.getContractFactory("contracts/mocks/MockERC20.sol:MockERC20");
   const tokenContracts = {};
 
   for (const [symbol, config] of Object.entries(TOKENS)) {
@@ -228,8 +273,14 @@ async function main() {
     const tx = await factory.createShard(
       tokenA.address,
       tokenB.address,
-      SAMM_PARAMS,
-      FEE_PARAMS,
+      SAMM_PARAMS.beta1,
+      SAMM_PARAMS.rmin,
+      SAMM_PARAMS.rmax,
+      SAMM_PARAMS.c,
+      FEE_PARAMS.tradeFeeNumerator,
+      FEE_PARAMS.tradeFeeDenominator,
+      FEE_PARAMS.ownerFeeNumerator,
+      FEE_PARAMS.ownerFeeDenominator,
       { gasLimit: GAS_LIMIT }
     );
     const receipt = await tx.wait(CONFIRMATIONS);
@@ -492,6 +543,7 @@ async function main() {
   await tokenContracts.USDC.contract.approve(routerAddress, ethers.parseUnits("100000", 6));
   try {
     const wethBefore = await tokenContracts.WETH.contract.balanceOf(deployer.address);
+    // c=0.96%: $1M pool has ~244 WETH, max output = 2.34 WETH. Use 1 WETH.
     const tx = await router.swapExactOutput({
       hops: [{ tokenIn: tokenContracts.USDC.address, tokenOut: tokenContracts.WETH.address, amountOut: ethers.parseUnits("1", 18) }],
       maxAmountIn: ethers.parseUnits("5000", 6),
@@ -512,9 +564,10 @@ async function main() {
   console.log("\n   Testing WBTC-USDC swap:");
   try {
     const wbtcBefore = await tokenContracts.WBTC.contract.balanceOf(deployer.address);
+    // c=0.96%: $2M pool has ~11.5 BTC, max output = 0.11 BTC. Use 0.05 BTC.
     const tx = await router.swapExactOutput({
-      hops: [{ tokenIn: tokenContracts.USDC.address, tokenOut: tokenContracts.WBTC.address, amountOut: ethers.parseUnits("0.1", 8) }],
-      maxAmountIn: ethers.parseUnits("15000", 6),
+      hops: [{ tokenIn: tokenContracts.USDC.address, tokenOut: tokenContracts.WBTC.address, amountOut: ethers.parseUnits("0.05", 8) }],
+      maxAmountIn: ethers.parseUnits("8000", 6),
       deadline: deadline,
       recipient: deployer.address
     }, { gasLimit: GAS_LIMIT });
@@ -522,7 +575,7 @@ async function main() {
     
     const wbtcAfter = await tokenContracts.WBTC.contract.balanceOf(deployer.address);
     const received = wbtcAfter - wbtcBefore;
-    logTest("WBTC-USDC swap (volatile-stable)", received === ethers.parseUnits("0.1", 8),
+    logTest("WBTC-USDC swap (volatile-stable)", received === ethers.parseUnits("0.05", 8),
       `Received: ${ethers.formatUnits(received, 8)} WBTC`);
   } catch (e) {
     logTest("WBTC-USDC swap", false, e.message.slice(0, 80));
@@ -533,9 +586,10 @@ async function main() {
   await tokenContracts.WETH.contract.approve(routerAddress, ethers.parseUnits("100", 18));
   try {
     const wbtcBefore = await tokenContracts.WBTC.contract.balanceOf(deployer.address);
+    // c=0.96%: $1.5M pool has ~8.6 BTC, max = 0.083. Use 0.05 BTC.
     const tx = await router.swapExactOutput({
       hops: [{ tokenIn: tokenContracts.WETH.address, tokenOut: tokenContracts.WBTC.address, amountOut: ethers.parseUnits("0.05", 8) }],
-      maxAmountIn: ethers.parseUnits("2", 18),
+      maxAmountIn: ethers.parseUnits("5", 18),
       deadline: deadline,
       recipient: deployer.address
     }, { gasLimit: GAS_LIMIT });
@@ -653,9 +707,10 @@ async function main() {
   console.log("\n   Testing WETH-AAVE cross-pair swap:");
   try {
     const aaveBefore = await tokenContracts.AAVE.contract.balanceOf(deployer.address);
+    // c=0.96%: $80K pool has ~222 AAVE, max = 2.13. Use 1 AAVE.
     const tx = await router.swapExactOutput({
-      hops: [{ tokenIn: tokenContracts.WETH.address, tokenOut: tokenContracts.AAVE.address, amountOut: ethers.parseUnits("0.5", 18) }],
-      maxAmountIn: ethers.parseUnits("0.05", 18), // Tested: requires ~0.036 WETH + buffer
+      hops: [{ tokenIn: tokenContracts.WETH.address, tokenOut: tokenContracts.AAVE.address, amountOut: ethers.parseUnits("1", 18) }],
+      maxAmountIn: ethers.parseUnits("0.2", 18),
       deadline: deadline,
       recipient: deployer.address
     }, { gasLimit: GAS_LIMIT });
@@ -663,7 +718,7 @@ async function main() {
     
     const aaveAfter = await tokenContracts.AAVE.contract.balanceOf(deployer.address);
     const received = aaveAfter - aaveBefore;
-    logTest("WETH-AAVE cross-pair swap", received === ethers.parseUnits("0.5", 18),
+    logTest("WETH-AAVE cross-pair swap", received === ethers.parseUnits("1", 18),
       `Received: ${ethers.formatUnits(received, 18)} AAVE`);
   } catch (e) {
     logTest("WETH-AAVE cross-pair swap", false, e.message.slice(0, 80));
@@ -722,6 +777,7 @@ async function main() {
   console.log("\n   Testing large swap (should use large shard):");
   try {
     const daiBefore = await tokenContracts.DAI.contract.balanceOf(deployer.address);
+    // c=0.96%: $1.5M pool has ~750K DAI, max = 7200. Use 5000.
     const tx = await router.swapExactOutput({
       hops: [{ tokenIn: tokenContracts.USDC.address, tokenOut: tokenContracts.DAI.address, amountOut: ethers.parseUnits("5000", 18) }],
       maxAmountIn: ethers.parseUnits("6000", 6),
@@ -811,9 +867,12 @@ async function main() {
    
    c-THRESHOLD FORMULA:
    ====================
-   - c = 0.0104 (from SAMM research paper)
+   - c = 0.0096 (0.96% - allows meaningful swaps per shard)
    - Max output = Reserve × c
    - If swap exceeds this, router selects larger shard
+   - Total max fee = rmax(0.25%) + owner(0.05%) = 0.30%
+   - Fee is natural from formula, NOT hardcoded
+   - Constraint: (rmax-rmin)/|β1| = 2400/250000 = 0.0096 ≥ c ✅
   `);
 }
 

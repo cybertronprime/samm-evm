@@ -105,8 +105,57 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
         uint256 _ownerFeeNumerator,
         uint256 _ownerFeeDenominator
     ) external override onlyOwner returns (uint256 lpTokens) {
+        return _initialize(
+            _tokenA,
+            _tokenB,
+            _amountA,
+            _amountB,
+            _tradeFeeNumerator,
+            _tradeFeeDenominator,
+            _ownerFeeNumerator,
+            _ownerFeeDenominator,
+            msg.sender
+        );
+    }
+
+    function initialize(
+        address _tokenA,
+        address _tokenB,
+        uint256 _amountA,
+        uint256 _amountB,
+        uint256 _tradeFeeNumerator,
+        uint256 _tradeFeeDenominator,
+        uint256 _ownerFeeNumerator,
+        uint256 _ownerFeeDenominator,
+        address liquidityRecipient
+    ) external onlyOwner returns (uint256 lpTokens) {
+        return _initialize(
+            _tokenA,
+            _tokenB,
+            _amountA,
+            _amountB,
+            _tradeFeeNumerator,
+            _tradeFeeDenominator,
+            _ownerFeeNumerator,
+            _ownerFeeDenominator,
+            liquidityRecipient
+        );
+    }
+
+    function _initialize(
+        address _tokenA,
+        address _tokenB,
+        uint256 _amountA,
+        uint256 _amountB,
+        uint256 _tradeFeeNumerator,
+        uint256 _tradeFeeDenominator,
+        uint256 _ownerFeeNumerator,
+        uint256 _ownerFeeDenominator,
+        address liquidityRecipient
+    ) internal returns (uint256 lpTokens) {
         require(!initialized, "SAMMPool: already initialized");
         require(_amountA > 0 && _amountB > 0, "SAMMPool: insufficient initial liquidity");
+        require(liquidityRecipient != address(0), "SAMMPool: zero liquidity recipient");
 
         // Validate fees
         require(
@@ -142,7 +191,7 @@ contract SAMMPool is ERC20, Ownable, ReentrancyGuard, ISAMMPool {
 
         // Lock minimum liquidity (burn to dead address, not address(0))
         _mint(address(0xdead), MINIMUM_LIQUIDITY);
-        _mint(msg.sender, lpTokens - MINIMUM_LIQUIDITY);
+    _mint(liquidityRecipient, lpTokens - MINIMUM_LIQUIDITY);
 
         // Update reserves
         reserveA = _amountA;

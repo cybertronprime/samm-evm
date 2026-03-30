@@ -34,7 +34,7 @@ module.exports = {
       timeout: 60000,
     },
     risechain: {
-      url: process.env.RISECHAIN_RPC_URL || "https://testnet.riselabs.xyz",
+      url: process.env.RISECHAIN_RPC_URL || "https://testnet.riselabs.xyz/http",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 11155931, // RISE testnet chain ID
       gasPrice: "auto",

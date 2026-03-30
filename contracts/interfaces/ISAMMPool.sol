@@ -1,10 +1,7 @@
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/**
- * @title ISAMMPool
- * @notice Interface for SAMM Pool contract
- */
 interface ISAMMPool {
     // Events
     event PoolInitialized(
@@ -53,6 +50,13 @@ interface ISAMMPool {
     );
 
     // Structs
+    struct SwapResult {
+        uint256 amountIn;
+        uint256 amountOut;
+        uint256 tradeFee;
+        uint256 ownerFee;
+    }
+
     struct PoolState {
         address tokenA;
         address tokenB;
@@ -65,23 +69,27 @@ interface ISAMMPool {
         uint256 ownerFeeDenominator;
     }
 
-    struct SwapResult {
-        uint256 amountIn;
-        uint256 amountOut;
-        uint256 tradeFee;
-        uint256 ownerFee;
-    }
-
-    // Main functions
     function initialize(
-        address _tokenA,
-        address _tokenB,
-        uint256 _amountA,
-        uint256 _amountB,
-        uint256 _tradeFeeNumerator,
-        uint256 _tradeFeeDenominator,
-        uint256 _ownerFeeNumerator,
-        uint256 _ownerFeeDenominator
+        address tokenA,
+        address tokenB,
+        uint256 amountA,
+        uint256 amountB,
+        uint256 tradeFeeNumerator,
+        uint256 tradeFeeDenominator,
+        uint256 ownerFeeNumerator,
+        uint256 ownerFeeDenominator
+    ) external returns (uint256 lpTokens);
+
+    function initialize(
+        address tokenA,
+        address tokenB,
+        uint256 amountA,
+        uint256 amountB,
+        uint256 tradeFeeNumerator,
+        uint256 tradeFeeDenominator,
+        uint256 ownerFeeNumerator,
+        uint256 ownerFeeDenominator,
+        address liquidityRecipient
     ) external returns (uint256 lpTokens);
 
     function swapSAMM(
@@ -107,46 +115,24 @@ interface ISAMMPool {
         address to
     ) external returns (uint256 amountA, uint256 amountB);
 
-    // View functions
-    function getReserves() external view returns (uint256 reserveA, uint256 reserveB);
-
-    function getPoolState() external view returns (PoolState memory);
-
     function calculateSwapSAMM(
         uint256 amountOut,
         address tokenIn,
         address tokenOut
     ) external view returns (SwapResult memory);
 
-    function quote(
-        uint256 amountA,
-        uint256 reserveA,
-        uint256 reserveB
-    ) external pure returns (uint256 amountB);
-
-    /**
-     * @notice Get the address of token A
-     * @return Address of token A
-     */
+    function getReserves() external view returns (uint256 reserveA, uint256 reserveB);
+    function getPoolState() external view returns (PoolState memory);
+    function quote(uint256 amountA, uint256 reserveA, uint256 reserveB) external pure returns (uint256 amountB);
+    function updateFees(
+        uint256 tradeFeeNumerator,
+        uint256 tradeFeeDenominator,
+        uint256 ownerFeeNumerator,
+        uint256 ownerFeeDenominator
+    ) external;
+    function updateSAMMParams(int256 beta1, uint256 rmin, uint256 rmax, uint256 c) external;
+    function getSAMMParams() external view returns (int256 beta1, uint256 rmin, uint256 rmax, uint256 c);
+    function withdrawFees(address to) external;
     function tokenA() external view returns (address);
-
-    /**
-     * @notice Get the address of token B
-     * @return Address of token B
-     */
     function tokenB() external view returns (address);
-
-    /**
-     * @notice Get SAMM parameters
-     * @return beta1 β1 parameter (scaled by 1e6)
-     * @return rmin rmin parameter (scaled by 1e6)
-     * @return rmax rmax parameter (scaled by 1e6)
-     * @return c c-threshold parameter (scaled by 1e6)
-     */
-    function getSAMMParams() external view returns (
-        int256 beta1,
-        uint256 rmin,
-        uint256 rmax,
-        uint256 c
-    );
 }
