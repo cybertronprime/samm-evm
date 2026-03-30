@@ -38,6 +38,7 @@ Thumbs.db
 
 # Deployment artifacts
 deployment-*.json
+deployment-data/
 deployments/
 
 # Test
