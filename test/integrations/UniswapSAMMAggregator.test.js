@@ -102,7 +102,7 @@ describe("UniswapSAMMAggregator", function () {
 
   describe("getQuotes", function () {
     it("returns both SAMM and Uniswap quotes", async function () {
-      const [sammAmt, uniAmt] = await aggregator.getQuotes(
+      const [sammAmt, uniAmt] = await aggregator.getQuotes.staticCall(
         await tokenIn.getAddress(),
         await tokenOut.getAddress(),
         AMOUNT_OUT,
