@@ -43,3 +43,7 @@ deployments/
 
 # Test
 test-results/
+*-test-output.txt
+
+# Keys / wallets
+wallet-keypair.json
