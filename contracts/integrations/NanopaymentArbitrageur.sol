@@ -79,72 +79,14 @@ contract NanopaymentArbitrageur is Ownable, ReentrancyGuard {
         address tokenB,
         uint256 nanoAmount
     ) external onlyAgent nonReentrant returns (uint256 profit) {
-        if (pool1 == pool2) revert SamePool();
-        if (nanoAmount == 0) revert ZeroAmount();
-
-        AgentStats storage stats = agentStats[msg.sender];
-        stats.totalArbs++;
-
-        uint256 tokenABefore = IERC20(tokenA).balanceOf(address(this));
-        uint256 tokenBBefore = IERC20(tokenB).balanceOf(address(this));
-
-        // --- Step 1: Quote how much tokenB we can receive for nanoAmount of tokenA ---
-        // calculateSwapSAMM(amountOut, tokenIn, tokenOut): "to receive amountOut of tokenOut,
-        // how much tokenIn do I need?" — we use nanoAmount as the desired output (≈1:1 for stables).
-        ISAMMPool.SwapResult memory buyQuote = ISAMMPool(pool1).calculateSwapSAMM(
-            nanoAmount,
-            tokenA,
-            tokenB
-        );
-        if (buyQuote.amountOut == 0 || buyQuote.amountIn > tokenABefore) revert NoProfitableArb();
-
-        // --- Step 2: Execute buy (exact output: receive nanoAmount tokenB, pay ≤ buyQuote.amountIn) ---
-        IERC20(tokenA).forceApprove(pool1, buyQuote.amountIn);
-        ISAMMPool(pool1).swapSAMM(
-            nanoAmount,       // amountOut: exact tokenB to receive
-            buyQuote.amountIn, // maximalAmountIn
-            tokenA,
-            tokenB,
-            address(this)
-        );
-
-        // --- Step 3: Measure actual tokenB received (delta, not total balance) ---
-        uint256 tokenBReceived = IERC20(tokenB).balanceOf(address(this)) - tokenBBefore;
-        if (tokenBReceived == 0) revert NoProfitableArb();
-
-        // --- Step 4: Quote how much tokenA we'd get selling tokenBReceived on pool2 ---
-        ISAMMPool.SwapResult memory sellQuote = ISAMMPool(pool2).calculateSwapSAMM(
-            tokenBReceived,
-            tokenB,
-            tokenA
-        );
-
-        // --- Step 5: Execute sell (exact output: receive sellQuote.amountOut tokenA) ---
-        IERC20(tokenB).forceApprove(pool2, tokenBReceived);
-        ISAMMPool(pool2).swapSAMM(
-            sellQuote.amountOut, // amountOut: tokenA to receive
-            tokenBReceived,      // maximalAmountIn: all tokenB we received
-            tokenB,
-            tokenA,
-            address(this)
-        );
-
-        uint256 tokenAAfter = IERC20(tokenA).balanceOf(address(this));
-        // Must have more tokenA than before the arb started
-        if (tokenAAfter <= tokenABefore) revert NoProfitableArb();
-
-        profit = tokenAAfter - tokenABefore;
-        stats.successfulArbs++;
-        stats.totalProfit += profit;
-
-        emit NanoArbitrage(msg.sender, pool1, pool2, profit, block.timestamp);
+        return _executeArb(pool1, pool2, tokenA, tokenB, nanoAmount);
     }
 
     /**
      * @notice Autonomous arbitrage — agent calls this and the contract auto-detects
      *         the best opportunity across registered shard pairs.
      * @dev Off-chain agent selects the optimal pool1/pool2 pair via quoteNanoArbitrage.
-     *      This function delegates to the core executeNanoArbitrage logic.
+     *      This function delegates to the core arbitrage logic.
      */
     function executeAutonomousArbitrage(
         address pool1,
@@ -153,6 +95,18 @@ contract NanopaymentArbitrageur is Ownable, ReentrancyGuard {
         address tokenB,
         uint256 nanoAmount
     ) external onlyAgent nonReentrant returns (uint256 profit) {
+        return _executeArb(pool1, pool2, tokenA, tokenB, nanoAmount);
+    }
+
+    // ============ Internal ============
+
+    function _executeArb(
+        address pool1,
+        address pool2,
+        address tokenA,
+        address tokenB,
+        uint256 nanoAmount
+    ) private returns (uint256 profit) {
         if (pool1 == pool2) revert SamePool();
         if (nanoAmount == 0) revert ZeroAmount();
 
@@ -162,6 +116,7 @@ contract NanopaymentArbitrageur is Ownable, ReentrancyGuard {
         uint256 tokenABefore = IERC20(tokenA).balanceOf(address(this));
         uint256 tokenBBefore = IERC20(tokenB).balanceOf(address(this));
 
+        // Step 1: Quote buy — "to receive nanoAmount of tokenB, how much tokenA?"
         ISAMMPool.SwapResult memory buyQuote = ISAMMPool(pool1).calculateSwapSAMM(
             nanoAmount,
             tokenA,
@@ -169,20 +124,36 @@ contract NanopaymentArbitrageur is Ownable, ReentrancyGuard {
         );
         if (buyQuote.amountOut == 0 || buyQuote.amountIn > tokenABefore) revert NoProfitableArb();
 
+        // Step 2: Execute buy (exact output: receive nanoAmount tokenB)
         IERC20(tokenA).forceApprove(pool1, buyQuote.amountIn);
-        ISAMMPool(pool1).swapSAMM(nanoAmount, buyQuote.amountIn, tokenA, tokenB, address(this));
+        ISAMMPool(pool1).swapSAMM(
+            nanoAmount,
+            buyQuote.amountIn,
+            tokenA,
+            tokenB,
+            address(this)
+        );
 
+        // Step 3: Measure actual tokenB received (delta, not total balance)
         uint256 tokenBReceived = IERC20(tokenB).balanceOf(address(this)) - tokenBBefore;
         if (tokenBReceived == 0) revert NoProfitableArb();
 
+        // Step 4: Quote sell — "to receive tokenBReceived of tokenA, how much tokenB?"
         ISAMMPool.SwapResult memory sellQuote = ISAMMPool(pool2).calculateSwapSAMM(
             tokenBReceived,
             tokenB,
             tokenA
         );
 
+        // Step 5: Execute sell (exact output: receive sellQuote.amountOut tokenA)
         IERC20(tokenB).forceApprove(pool2, tokenBReceived);
-        ISAMMPool(pool2).swapSAMM(sellQuote.amountOut, tokenBReceived, tokenB, tokenA, address(this));
+        ISAMMPool(pool2).swapSAMM(
+            sellQuote.amountOut,
+            tokenBReceived,
+            tokenB,
+            tokenA,
+            address(this)
+        );
 
         uint256 tokenAAfter = IERC20(tokenA).balanceOf(address(this));
         if (tokenAAfter <= tokenABefore) revert NoProfitableArb();

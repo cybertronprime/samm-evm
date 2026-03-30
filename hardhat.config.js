@@ -41,7 +41,7 @@ module.exports = {
       timeout: 60000,
     },
     // Arc Testnet — EVM-compatible, USDC is native gas token
-    // Note: Chainlink contracts (@chainlink/contracts ^1.3.0 or later) are required for integrations
+    // Note: Chainlink contracts (@chainlink/contracts ^1.5.0 or later) are required for integrations
     arc: {
       url: process.env.ARC_RPC_URL || "https://testnet-rpc.arc.network",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
