@@ -129,12 +129,7 @@ describe("VRFFairSequencer", function () {
     });
 
     it("fulfills batch and emits BatchSequenced", async function () {
-      const requestId = await sequencer.vrfRequestToBatch(batchId);
-      
-      // Note: vrfRequestToBatch maps batchId=>requestId, but we need requestId
-      // Let's get the VRF requestId from the BatchSubmitted event
-      // The mapping in the contract is vrfRequestToBatch[requestId] = batchId
-      // So we need the VRF requestId (1 since it's the first request)
+      // The mock VRF coordinator assigns requestId=1 for the first request
       const vrfRequestId = 1n;
 
       await expect(
