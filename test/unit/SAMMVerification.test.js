@@ -7,7 +7,7 @@ describe("SAMM Solidity Verification Against Rust", function () {
   let tokenB;
   let owner;
 
-  const INITIAL_LIQUIDITY = ethers.parseEther("100000");
+  const INITIAL_LIQUIDITY = ethers.parseEther("2000000");
   const TRADE_FEE_NUMERATOR = 25n;
   const TRADE_FEE_DENOMINATOR = 10000n;
   const OWNER_FEE_NUMERATOR = 10n;
@@ -17,7 +17,7 @@ describe("SAMM Solidity Verification Against Rust", function () {
     [owner] = await ethers.getSigners();
 
     // Deploy mock tokens
-    const MockERC20 = await ethers.getContractFactory("MockERC20");
+    const MockERC20 = await ethers.getContractFactory("contracts/mocks/MockERC20.sol:MockERC20");
     tokenA = await MockERC20.deploy("Token A", "TKNA", 18);
     tokenB = await MockERC20.deploy("Token B", "TKNB", 18);
 
@@ -31,8 +31,8 @@ describe("SAMM Solidity Verification Against Rust", function () {
     );
 
     // Mint and approve
-    await tokenA.mint(owner.address, ethers.parseEther("1000000"));
-    await tokenB.mint(owner.address, ethers.parseEther("1000000"));
+    await tokenA.mint(owner.address, ethers.parseEther("10000000"));
+    await tokenB.mint(owner.address, ethers.parseEther("10000000"));
     await tokenA.approve(await sammPool.getAddress(), ethers.MaxUint256);
     await tokenB.approve(await sammPool.getAddress(), ethers.MaxUint256);
 

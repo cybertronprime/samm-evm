@@ -64,7 +64,7 @@ async function main() {
   console.log(`   Router: ${routerAddress}`);
 
   // Deploy Tokens
-  const MockERC20 = await ethers.getContractFactory("MockERC20");
+  const MockERC20 = await ethers.getContractFactory("contracts/mocks/MockERC20.sol:MockERC20");
   const tokenA = await MockERC20.deploy("Token A", "TKNA", 18, { gasLimit: GAS_LIMIT });
   const tokenB = await MockERC20.deploy("Token B", "TKNB", 18, { gasLimit: GAS_LIMIT });
   const tokenC = await MockERC20.deploy("Token C", "TKNC", 18, { gasLimit: GAS_LIMIT });
@@ -86,12 +86,12 @@ async function main() {
   await tokenC.mint(deployer.address, mintAmount);
   console.log(`   Minted ${ethers.formatEther(mintAmount)} of each token`);
 
-  // SAMM Parameters
+  // SAMM Parameters - competitive with Uniswap (≤0.30% total fees)
   const SAMM_PARAMS = {
-    beta1: -1050000n,
-    rmin: 1000n,
-    rmax: 12000n,
-    c: 10400n
+    beta1: -250000n,   // -0.25 * 1e6 (gentler slope for larger c-threshold)
+    rmin: 100n,        // 0.0001 * 1e6  (0.01% min fee rate)
+    rmax: 2500n,       // 0.0025 * 1e6  (0.25% max fee rate)
+    c: 9600n           // 0.0096 * 1e6  (0.96% c-threshold)
   };
   const FEE_PARAMS = {
     tradeFeeNumerator: 25n,
@@ -102,7 +102,13 @@ async function main() {
 
   // Helper to create and initialize shard
   async function createShard(tokenIn, tokenOut, liquidity, name) {
-    const tx = await factory.createShard(tokenIn, tokenOut, SAMM_PARAMS, FEE_PARAMS, { gasLimit: GAS_LIMIT });
+    const tx = await factory.createShard(
+      tokenIn, tokenOut,
+      SAMM_PARAMS.beta1, SAMM_PARAMS.rmin, SAMM_PARAMS.rmax, SAMM_PARAMS.c,
+      FEE_PARAMS.tradeFeeNumerator, FEE_PARAMS.tradeFeeDenominator,
+      FEE_PARAMS.ownerFeeNumerator, FEE_PARAMS.ownerFeeDenominator,
+      { gasLimit: GAS_LIMIT }
+    );
     const receipt = await tx.wait(CONFIRMATIONS);
     const event = receipt.logs.find(log => {
       try { return factory.interface.parseLog(log)?.name === "ShardCreated"; }
@@ -233,14 +239,14 @@ async function main() {
 
   // Calculate max allowed output for tiny shard
   const [tinyResA, tinyResB] = await shardAB_tiny.contract.getReserves();
-  const cValue = Number(SAMM_PARAMS.c) / 1000000; // 0.0104
+  const cValue = Number(SAMM_PARAMS.c) / 1000000; // 0.0096
   const maxOutputTiny = Number(ethers.formatEther(tinyResA)) * cValue;
   console.log(`\n   Tiny shard reserves: ${ethers.formatEther(tinyResA)} / ${ethers.formatEther(tinyResB)}`);
   console.log(`   c-threshold: ${cValue}`);
   console.log(`   Max output for tiny shard: ~${maxOutputTiny.toFixed(4)} tokens`);
 
   // The c-threshold check is: OA/RA <= c
-  // For tiny shard with 500 reserve and c=0.0104: max OA = 500 * 0.0104 = 5.2 tokens
+  // For tiny shard with 500 reserve and c=0.0096: max OA = 500 * 0.0096 = 4.8 tokens
   // So a 10 token swap should exceed the c-threshold
   
   // Test: Router should skip tiny shard for large swaps that exceed c-threshold

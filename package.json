@@ -43,7 +43,8 @@
     "bench": "hardhat run scripts/bench.js --network risechain",
     "bench:multipool": "hardhat run scripts/bench-multipool.js --network risechain",
     "bench:parallel": "hardhat run scripts/bench-parallel.js --network risechain",
-    "bench:batched": "hardhat run scripts/bench-batched.js --network risechain"
+    "bench:batched": "hardhat run scripts/bench-batched.js --network risechain",
+    "test:risechain:swap-matrix": "hardhat run scripts/validate-risechain-swap-matrix.js --network risechain"
   },
   "keywords": [
     "SAMM",
@@ -75,7 +76,7 @@
     "typechain": "^8.3.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.0.0",
+    "@openzeppelin/contracts": "^5.6.1",
     "axios": "^1.13.2",
     "cors": "^2.8.6",
     "dotenv": "^16.0.0",

@@ -16,7 +16,7 @@ describe("Enhanced SAMM Pool", function () {
         [owner, user1, user2] = await ethers.getSigners();
 
         // Deploy mock tokens
-        const MockERC20 = await ethers.getContractFactory("MockERC20");
+        const MockERC20 = await ethers.getContractFactory("contracts/mocks/MockERC20.sol:MockERC20");
         tokenA = await MockERC20.deploy("Token A", "TKNA", 18);
         tokenB = await MockERC20.deploy("Token B", "TKNB", 18);
         await tokenA.waitForDeployment();

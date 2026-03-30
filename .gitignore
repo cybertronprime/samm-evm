@@ -36,9 +36,15 @@ Thumbs.db
 *.swo
 *~
 
-# Deployment artifacts
+# Deployment artifacts (root-level)
 deployment-*.json
 deployments/
 
-# Test
+# Backup files
+*.bak
+
+# Kiro (AI IDE)
+.kiro/
+
+# Test results (auto-generated)
 test-results/
